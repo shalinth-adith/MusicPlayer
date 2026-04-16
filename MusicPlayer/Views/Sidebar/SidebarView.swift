@@ -57,11 +57,24 @@ struct SidebarView: View {
                     .padding(.horizontal, 10)
 
                 SidebarItemView(
-                    label: "Import",
+                    label: "Import\nFiles",
                     icon: "plus.square.fill",
                     isSelected: false
                 ) {
                     libraryVM.isImporting = true
+                    onClose?()
+                }
+
+                SidebarItemView(
+                    label: libraryVM.hasMusicFolder
+                        ? "Sync\nFolder"
+                        : "Set\nFolder",
+                    icon: libraryVM.hasMusicFolder
+                        ? "arrow.triangle.2.circlepath"
+                        : "folder.badge.plus",
+                    isSelected: false
+                ) {
+                    libraryVM.isFolderPickerPresented = true
                     onClose?()
                 }
             }
