@@ -10,11 +10,8 @@ import SwiftUI
 @main
 struct MusicPlayerApp: App {
 
-    @StateObject private var playerVM   = PlayerViewModel()
-    @StateObject private var sidebarVM  = SidebarViewModel()
-
-    // LibraryViewModel needs a reference to PlayerViewModel,
-    // so we use a lazy initializer pattern via StateObject
+    @StateObject private var playerVM:  PlayerViewModel
+    @StateObject private var sidebarVM: SidebarViewModel
     @StateObject private var libraryVM: LibraryViewModel
 
     init() {

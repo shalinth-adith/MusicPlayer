@@ -1,5 +1,4 @@
 import SwiftUI
-import MediaPlayer
 
 struct PlayerControlsView: View {
 

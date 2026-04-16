@@ -33,7 +33,10 @@ struct LibraryView: View {
                 .background(Theme.background)
             }
         }
-        .alert("Import Error", isPresented: .constant(libraryVM.errorMessage != nil)) {
+        .alert("Import Error", isPresented: Binding(
+            get: { libraryVM.errorMessage != nil },
+            set: { if !$0 { libraryVM.errorMessage = nil } }
+        )) {
             Button("OK") { libraryVM.errorMessage = nil }
         } message: {
             Text(libraryVM.errorMessage ?? "")
