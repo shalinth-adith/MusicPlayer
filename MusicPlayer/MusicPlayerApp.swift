@@ -33,9 +33,9 @@ struct MusicPlayerApp: App {
         }
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {
-                // Sync saved music folder + Documents dir on every foreground
-                libraryVM.syncMusicFolder()
-                libraryVM.syncDocuments()
+                libraryVM.syncMediaLibrary()   // device Music library (iTunes/Apple Music)
+                libraryVM.syncMusicFolder()    // user-chosen Files app folder
+                libraryVM.syncDocuments()      // app Documents folder
             }
         }
     }

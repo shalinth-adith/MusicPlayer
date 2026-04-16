@@ -5,22 +5,28 @@ final class AudioPlayerService: NSObject {
 
     // MARK: - Properties
 
-    private var player: AVAudioPlayer?
+    private var player: AVPlayer?
+    private var endObserver: NSObjectProtocol?
 
-    /// Called when the current track finishes playing naturally
     var onPlaybackFinished: (() -> Void)?
 
     var currentTime: TimeInterval {
-        get { player?.currentTime ?? 0 }
-        set { player?.currentTime = newValue }
+        get {
+            let t = player?.currentTime().seconds ?? 0
+            return t.isNaN || t.isInfinite ? 0 : t
+        }
+        set {
+            player?.seek(to: CMTime(seconds: newValue, preferredTimescale: 1000))
+        }
     }
 
     var duration: TimeInterval {
-        player?.duration ?? 0
+        let d = player?.currentItem?.duration.seconds ?? 0
+        return d.isNaN || d.isInfinite ? 0 : d
     }
 
     var isPlaying: Bool {
-        player?.isPlaying ?? false
+        (player?.rate ?? 0) > 0
     }
 
     // MARK: - Session Setup
@@ -37,10 +43,26 @@ final class AudioPlayerService: NSObject {
     // MARK: - Playback
 
     func load(url: URL) throws {
-        player?.stop()
-        player = try AVAudioPlayer(contentsOf: url)
-        player?.delegate = self
-        player?.prepareToPlay()
+        // Remove previous end observer
+        if let obs = endObserver {
+            NotificationCenter.default.removeObserver(obs)
+        }
+
+        let item = AVPlayerItem(url: url)
+        if player == nil {
+            player = AVPlayer(playerItem: item)
+        } else {
+            player?.replaceCurrentItem(with: item)
+        }
+
+        // Observe when track ends
+        endObserver = NotificationCenter.default.addObserver(
+            forName: .AVPlayerItemDidPlayToEndTime,
+            object: item,
+            queue: .main
+        ) { [weak self] _ in
+            self?.onPlaybackFinished?()
+        }
     }
 
     func play() {
@@ -52,12 +74,12 @@ final class AudioPlayerService: NSObject {
     }
 
     func stop() {
-        player?.stop()
-        player?.currentTime = 0
+        player?.pause()
+        player?.seek(to: .zero)
     }
 
     func seek(to time: TimeInterval) {
-        player?.currentTime = time
+        player?.seek(to: CMTime(seconds: time, preferredTimescale: 1000))
     }
 
     func setVolume(_ volume: Float) {
@@ -88,27 +110,13 @@ final class AudioPlayerService: NSObject {
         onPrevious: @escaping () -> Void
     ) {
         let center = MPRemoteCommandCenter.shared()
-
         center.playCommand.isEnabled = true
         center.playCommand.addTarget { _ in onPlay(); return .success }
-
         center.pauseCommand.isEnabled = true
         center.pauseCommand.addTarget { _ in onPause(); return .success }
-
         center.nextTrackCommand.isEnabled = true
         center.nextTrackCommand.addTarget { _ in onNext(); return .success }
-
         center.previousTrackCommand.isEnabled = true
         center.previousTrackCommand.addTarget { _ in onPrevious(); return .success }
-    }
-}
-
-// MARK: - AVAudioPlayerDelegate
-
-extension AudioPlayerService: AVAudioPlayerDelegate {
-    func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
-        if flag {
-            onPlaybackFinished?()
-        }
     }
 }

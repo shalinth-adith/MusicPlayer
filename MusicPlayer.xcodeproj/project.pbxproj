@@ -6,6 +6,11 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		AA000002000000000000AA01 /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AA000001000000000000AA01 /* AVFoundation.framework */; };
+		AA000002000000000000AA02 /* MediaPlayer.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AA000001000000000000AA02 /* MediaPlayer.framework */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		F0357F8E2F90EDF30056AB97 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -24,6 +29,8 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		AA000001000000000000AA01 /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
+		AA000001000000000000AA02 /* MediaPlayer.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MediaPlayer.framework; path = System/Library/Frameworks/MediaPlayer.framework; sourceTree = SDKROOT; };
 		F0357F802F90EDF20056AB97 /* MusicPlayer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MusicPlayer.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		F0357F8D2F90EDF30056AB97 /* MusicPlayerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MusicPlayerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		F0357F972F90EDF30056AB97 /* MusicPlayerUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MusicPlayerUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -46,16 +53,6 @@
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
-
-/* Begin PBXFileReference section */
-		AA000001000000000000AA01 /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
-		AA000001000000000000AA02 /* MediaPlayer.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MediaPlayer.framework; path = System/Library/Frameworks/MediaPlayer.framework; sourceTree = SDKROOT; };
-/* End PBXFileReference section */
-
-/* Begin PBXBuildFile section */
-		AA000002000000000000AA01 /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AA000001000000000000AA01 /* AVFoundation.framework */; };
-		AA000002000000000000AA02 /* MediaPlayer.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AA000001000000000000AA02 /* MediaPlayer.framework */; };
-/* End PBXBuildFile section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		F0357F7D2F90EDF20056AB97 /* Frameworks */ = {
@@ -84,6 +81,15 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		AA000003000000000000AA01 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				AA000001000000000000AA01 /* AVFoundation.framework */,
+				AA000001000000000000AA02 /* MediaPlayer.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		F0357F772F90EDF20056AB97 = {
 			isa = PBXGroup;
 			children = (
@@ -103,15 +109,6 @@
 				F0357F972F90EDF30056AB97 /* MusicPlayerUITests.xctest */,
 			);
 			name = Products;
-			sourceTree = "<group>";
-		};
-		AA000003000000000000AA01 /* Frameworks */ = {
-			isa = PBXGroup;
-			children = (
-				AA000001000000000000AA01 /* AVFoundation.framework */,
-				AA000001000000000000AA02 /* MediaPlayer.framework */,
-			);
-			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -421,6 +418,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "MusicPlayer needs access to your music library to automatically sync your songs.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UIFileSharingEnabled = YES;
@@ -455,6 +453,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "MusicPlayer needs access to your music library to automatically sync your songs.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UIFileSharingEnabled = YES;

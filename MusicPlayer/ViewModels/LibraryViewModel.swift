@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import MediaPlayer
 
 @MainActor
 final class LibraryViewModel: ObservableObject {
@@ -18,16 +19,54 @@ final class LibraryViewModel: ObservableObject {
     // MARK: - Private
 
     private let fileImportService: FileImportService
+    private let mediaLibraryService: MediaLibraryService
     private let playerViewModel: PlayerViewModel
     private let storageKey = "saved_library"
 
     // MARK: - Init
 
-    init(fileImportService: FileImportService = FileImportService(),
-         playerViewModel: PlayerViewModel) {
+    init(
+        fileImportService: FileImportService = FileImportService(),
+        mediaLibraryService: MediaLibraryService = MediaLibraryService(),
+        playerViewModel: PlayerViewModel
+    ) {
         self.fileImportService = fileImportService
+        self.mediaLibraryService = mediaLibraryService
         self.playerViewModel = playerViewModel
         loadLibrary()
+    }
+
+    // MARK: - Device Music Library Sync
+
+    /// Syncs songs from the device's Music library (iTunes sync, Apple Music downloads).
+    /// Requests permission on first call; subsequent calls are automatic.
+    func syncMediaLibrary() {
+        switch mediaLibraryService.authorizationStatus {
+        case .authorized:
+            importMediaLibrarySongs()
+        case .notDetermined:
+            mediaLibraryService.requestAuthorization { [weak self] granted in
+                if granted { self?.importMediaLibrarySongs() }
+            }
+        default:
+            break // denied — user must enable in Settings
+        }
+    }
+
+    private func importMediaLibrarySongs() {
+        let mediaSongs = mediaLibraryService.fetchAllSongs()
+        guard !mediaSongs.isEmpty else { return }
+
+        let existingAssetURLs = Set(songs.compactMap { $0.assetURLString })
+        let newSongs = mediaSongs.filter { song in
+            guard let url = song.assetURLString else { return false }
+            return !existingAssetURLs.contains(url)
+        }
+
+        if !newSongs.isEmpty {
+            songs.append(contentsOf: newSongs)
+            saveLibrary()
+        }
     }
 
     // MARK: - Music Folder Sync
