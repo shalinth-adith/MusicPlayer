@@ -6,117 +6,161 @@ struct PlayerControlsView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Divider().background(Theme.border)
+            // Status bar — marquee track name
+            statusBar
 
-            // Row 1 — Now playing label
-            HStack(spacing: 6) {
-                Image(systemName: playerVM.isPlaying ? "play.fill" : "pause.fill")
-                    .font(.system(size: 9))
-                    .foregroundStyle(Theme.accent)
-
-                Text(playerVM.currentSong.map { "\($0.title) — \($0.artist)" } ?? "Not Playing")
-                    .font(.system(size: 11))
-                    .foregroundStyle(Theme.text)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-
-                Spacer()
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 5)
-            .background(Theme.sidebar.opacity(0.6))
-
-            // Row 2 — Seek bar
+            // Seek bar
             SeekBarView()
-                .padding(.vertical, 4)
-                .background(Theme.background)
 
-            // Row 3 — Buttons
-            HStack(spacing: 0) {
-                // Playback buttons group
-                HStack(spacing: 14) {
-                    controlButton("backward.end.fill", size: 16) { playerVM.previous() }
-                    controlButton("stop.fill",         size: 16) { playerVM.stop() }
-                    controlButton("gobackward.10",     size: 16) { playerVM.seekBackward10s() }
+            // Transport controls
+            transportBar
+        }
+        .background(Theme.controlsBg)
+        .overlay(
+            Rectangle()
+                .frame(height: 1)
+                .foregroundStyle(Theme.bevelLight),
+            alignment: .top
+        )
+    }
 
-                    // Play / Pause
-                    Button {
-                        playerVM.isPlaying ? playerVM.pause() : playerVM.resume()
-                    } label: {
-                        Image(systemName: playerVM.isPlaying ? "pause.fill" : "play.fill")
-                            .font(.system(size: 20, weight: .bold))
-                            .foregroundStyle(Theme.text)
-                            .frame(width: 36, height: 36)
-                            .background(Theme.accent.opacity(0.25))
-                            .clipShape(Circle())
-                    }
-                    .buttonStyle(.plain)
+    // MARK: - Status Bar
 
-                    controlButton("goforward.10",     size: 16) { playerVM.seekForward10s() }
-                    controlButton("forward.end.fill", size: 16) { playerVM.next() }
+    private var statusBar: some View {
+        HStack(spacing: 6) {
+            Image(systemName: playerVM.isPlaying ? "play.fill" : "stop.fill")
+                .font(.system(size: 8))
+                .foregroundStyle(playerVM.isPlaying ? Theme.seekGreen : Theme.subtext)
+
+            MarqueeText(
+                text: playerVM.currentSong.map { "\($0.title)   —   \($0.artist)" } ?? "Not Playing",
+                font: .system(size: 11),
+                color: Theme.text,
+                speed: 35
+            )
+            .frame(height: 16)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 5)
+        .background(Theme.panel.opacity(0.8))
+        .overlay(
+            Rectangle()
+                .frame(height: 1)
+                .foregroundStyle(Theme.bevelDark),
+            alignment: .bottom
+        )
+    }
+
+    // MARK: - Transport Bar
+
+    private var transportBar: some View {
+        HStack(spacing: 0) {
+            // Left: playback buttons
+            HStack(spacing: 8) {
+                chunkButton("backward.end.fill", size: 14)  { playerVM.previous() }
+                chunkButton("stop.fill",          size: 14)  { playerVM.stop() }
+                chunkButton("gobackward.10",      size: 14)  { playerVM.seekBackward10s() }
+
+                // Main play/pause — larger, circular
+                Button {
+                    playerVM.isPlaying ? playerVM.pause() : playerVM.resume()
+                } label: {
+                    Image(systemName: playerVM.isPlaying ? "pause.fill" : "play.fill")
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundStyle(.white)
+                        .frame(width: 40, height: 40)
                 }
-                .padding(.leading, 12)
+                .buttonStyle(CircularBevelButtonStyle())
 
-                Spacer()
+                chunkButton("goforward.10",      size: 14)  { playerVM.seekForward10s() }
+                chunkButton("forward.end.fill",  size: 14)  { playerVM.next() }
+            }
+            .padding(.leading, 10)
 
-                // Right controls
-                HStack(spacing: 10) {
-                    // Mute
-                    controlButton(playerVM.isMuted ? "speaker.slash.fill" : "speaker.fill", size: 14) {
-                        playerVM.toggleMute()
-                    }
+            Spacer()
 
-                    // Volume slider
-                    Slider(value: Binding(
+            // Right: mute + volume + shuffle + repeat
+            HStack(spacing: 6) {
+                chunkButton(
+                    playerVM.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill",
+                    size: 12
+                ) { playerVM.toggleMute() }
+
+                // Volume slider — green fill
+                Slider(
+                    value: Binding(
                         get: { Double(playerVM.volume) },
                         set: { playerVM.setVolume(Float($0)) }
-                    ), in: 0...1)
-                    .tint(Theme.seekGreen)
-                    .frame(width: 70)
+                    ),
+                    in: 0...1
+                )
+                .tint(Theme.seekGreen)
+                .frame(width: 72)
 
-                    // Shuffle
-                    controlButton("shuffle", size: 14, isActive: playerVM.isShuffle) {
-                        playerVM.toggleShuffle()
-                    }
-
-                    // Repeat
-                    repeatButton
+                chunkButton("shuffle", size: 12, isActive: playerVM.isShuffle) {
+                    playerVM.toggleShuffle()
                 }
-                .padding(.trailing, 12)
+
+                repeatChunkButton
             }
-            .padding(.vertical, 8)
-            .background(Theme.background)
+            .padding(.trailing, 10)
         }
+        .padding(.vertical, 8)
+        .background(Theme.controlsBg)
     }
 
     // MARK: - Helpers
 
     @ViewBuilder
-    private func controlButton(_ icon: String, size: CGFloat, isActive: Bool = false, action: @escaping () -> Void) -> some View {
+    private func chunkButton(
+        _ icon: String,
+        size: CGFloat,
+        isActive: Bool = false,
+        action: @escaping () -> Void
+    ) -> some View {
         Button(action: action) {
             Image(systemName: icon)
-                .font(.system(size: size))
-                .foregroundStyle(isActive ? Theme.accent : Theme.subtext)
-                .frame(width: 28, height: 28)
+                .font(.system(size: size, weight: .semibold))
+                .foregroundStyle(isActive ? Theme.accent : Theme.text)
+                .frame(width: 32, height: 28)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(BeveledButtonStyle(cornerRadius: 4))
     }
 
-    private var repeatButton: some View {
+    private var repeatChunkButton: some View {
         Button { playerVM.cycleRepeat() } label: {
             ZStack(alignment: .topTrailing) {
                 Image(systemName: "repeat")
-                    .font(.system(size: 14))
-                    .foregroundStyle(playerVM.repeatMode != .off ? Theme.accent : Theme.subtext)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(playerVM.repeatMode != .off ? Theme.accent : Theme.text)
                 if playerVM.repeatMode == .one {
                     Text("1")
                         .font(.system(size: 7, weight: .bold))
                         .foregroundStyle(Theme.accent)
-                        .offset(x: 4, y: -4)
+                        .offset(x: 5, y: -4)
                 }
             }
-            .frame(width: 28, height: 28)
+            .frame(width: 32, height: 28)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(BeveledButtonStyle(cornerRadius: 4))
     }
+}
+
+// MARK: - Preview
+
+#Preview("Not playing") {
+    PlayerControlsView()
+        .environmentObject(PlayerViewModel())
+        .frame(width: 500)
+}
+
+#Preview("Playing") {
+    let vm = PlayerViewModel()
+    vm.currentSong = Song(title: "Ambience : Water", artist: "Nature Sounds", duration: 245, bookmarkData: Data())
+    vm.isPlaying = true
+    vm.duration = 245
+    vm.currentTime = 60
+    return PlayerControlsView()
+        .environmentObject(vm)
+        .frame(width: 500)
 }

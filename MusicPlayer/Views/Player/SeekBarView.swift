@@ -11,7 +11,8 @@ struct SeekBarView: View {
     }
 
     var body: some View {
-        VStack(spacing: 2) {
+        VStack(spacing: 3) {
+            // Seek slider
             Slider(
                 value: Binding(
                     get: { isDragging ? dragValue : playerVM.currentTime },
@@ -20,25 +21,26 @@ struct SeekBarView: View {
                 in: 0...max(playerVM.duration, 1),
                 onEditingChanged: { editing in
                     isDragging = editing
-                    if !editing {
-                        playerVM.seek(to: dragValue)
-                    }
+                    if !editing { playerVM.seek(to: dragValue) }
                 }
             )
             .tint(Theme.seekGreen)
-            .padding(.horizontal, 8)
+            .padding(.horizontal, 10)
 
+            // Time labels
             HStack {
                 Text(formatTime(displayTime))
-                    .font(.system(size: 10, design: .monospaced))
+                    .font(.system(size: 9, design: .monospaced))
                     .foregroundStyle(Theme.subtext)
                 Spacer()
                 Text("-\(formatTime(max(playerVM.duration - displayTime, 0)))")
-                    .font(.system(size: 10, design: .monospaced))
+                    .font(.system(size: 9, design: .monospaced))
                     .foregroundStyle(Theme.subtext)
             }
-            .padding(.horizontal, 12)
+            .padding(.horizontal, 14)
         }
+        .padding(.vertical, 4)
+        .background(Theme.controlsBg)
     }
 
     private func formatTime(_ time: TimeInterval) -> String {
@@ -47,4 +49,15 @@ struct SeekBarView: View {
         let s = Int(t) % 60
         return String(format: "%d:%02d", m, s)
     }
+}
+
+// MARK: - Preview
+
+#Preview {
+    let vm = PlayerViewModel()
+    vm.duration = 245
+    vm.currentTime = 60
+    return SeekBarView()
+        .environmentObject(vm)
+        .frame(width: 350)
 }

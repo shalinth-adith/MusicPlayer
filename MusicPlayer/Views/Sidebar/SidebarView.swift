@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct SidebarView: View {
 
@@ -6,51 +7,77 @@ struct SidebarView: View {
     @EnvironmentObject var libraryVM: LibraryViewModel
 
     private let items: [(tab: AppTab, label: String, icon: String)] = [
-        (.nowPlaying, "Now Playing", "play.circle.fill"),
+        (.nowPlaying, "Now\nPlaying", "play.circle.fill"),
         (.library,    "Library",     "music.note.list")
     ]
 
     var body: some View {
         VStack(spacing: 0) {
-            // Header
-            HStack(spacing: 6) {
+            // Header logo
+            VStack(spacing: 4) {
                 Image(systemName: "music.note")
+                    .font(.system(size: 20, weight: .bold))
                     .foregroundStyle(Theme.accent)
-                    .font(.system(size: 14, weight: .bold))
-                Text("MusicPlayer")
-                    .font(.system(size: 11, weight: .bold))
+                Text("MUSIC")
+                    .font(.system(size: 9, weight: .bold, design: .monospaced))
                     .foregroundStyle(Theme.text)
+                Text("PLAYER")
+                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    .foregroundStyle(Theme.subtext)
             }
-            .padding(.vertical, 12)
-            .padding(.horizontal, 10)
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            Divider().background(Theme.border)
+            .padding(.vertical, 14)
+            .frame(maxWidth: .infinity)
+            .background(Theme.controlsBg)
+            .overlay(
+                Rectangle()
+                    .frame(height: 1)
+                    .foregroundStyle(Theme.bevelDark),
+                alignment: .bottom
+            )
 
             // Nav items
-            ForEach(items, id: \.tab) { item in
+            VStack(spacing: 2) {
+                ForEach(items, id: \.tab) { item in
+                    SidebarItemView(
+                        label: item.label,
+                        icon: item.icon,
+                        isSelected: sidebarVM.selectedTab == item.tab
+                    ) {
+                        sidebarVM.select(item.tab)
+                    }
+                }
+
+                Divider()
+                    .background(Theme.border)
+                    .padding(.vertical, 6)
+                    .padding(.horizontal, 10)
+
                 SidebarItemView(
-                    label: item.label,
-                    icon: item.icon,
-                    isSelected: sidebarVM.selectedTab == item.tab
+                    label: "Import",
+                    icon: "plus.square.fill",
+                    isSelected: false
                 ) {
-                    sidebarVM.select(item.tab)
+                    libraryVM.isImporting = true
                 }
             }
-
-            // Import button
-            SidebarItemView(
-                label: "Import",
-                icon: "plus.circle",
-                isSelected: false
-            ) {
-                libraryVM.isImporting = true
-            }
+            .padding(.top, 6)
 
             Spacer()
+
+            // Bottom version tag
+            Text("v1.0")
+                .font(.system(size: 9, design: .monospaced))
+                .foregroundStyle(Theme.subtext.opacity(0.5))
+                .padding(.bottom, 8)
         }
-        .frame(width: 120)
+        .frame(width: 110)
         .background(Theme.sidebar)
+        .overlay(
+            Rectangle()
+                .frame(width: 1)
+                .foregroundStyle(Theme.bevelDark),
+            alignment: .trailing
+        )
         .fileImporter(
             isPresented: $libraryVM.isImporting,
             allowedContentTypes: [.audio, .mp3, .mpeg4Audio, .wav, .aiff],
@@ -75,25 +102,52 @@ private struct SidebarItemView: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 0) {
-                // Active indicator bar
+                // Active bar
                 Rectangle()
                     .fill(isSelected ? Theme.accent : Color.clear)
                     .frame(width: 3)
 
-                VStack(spacing: 4) {
+                VStack(spacing: 5) {
                     Image(systemName: icon)
-                        .font(.system(size: 18))
+                        .font(.system(size: 20))
                         .foregroundStyle(isSelected ? Theme.accent : Theme.subtext)
                     Text(label)
-                        .font(.system(size: 10, weight: isSelected ? .semibold : .regular))
+                        .font(.system(size: 9, weight: isSelected ? .bold : .regular))
                         .foregroundStyle(isSelected ? Theme.text : Theme.subtext)
                         .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
+                .padding(.vertical, 10)
+                .background(
+                    isSelected
+                        ? Theme.accent.opacity(0.15)
+                        : Color.clear
+                )
             }
-            .background(isSelected ? Theme.background.opacity(0.4) : Color.clear)
         }
         .buttonStyle(.plain)
+        .overlay(
+            Rectangle()
+                .frame(height: 1)
+                .foregroundStyle(Theme.border),
+            alignment: .bottom
+        )
     }
+}
+
+// MARK: - Preview
+
+#Preview {
+    let playerVM  = PlayerViewModel()
+    let sidebarVM = SidebarViewModel()
+    let libraryVM = LibraryViewModel(playerViewModel: playerVM)
+    return HStack(spacing: 0) {
+        SidebarView()
+        Spacer()
+    }
+    .environmentObject(sidebarVM)
+    .environmentObject(libraryVM)
+    .frame(height: 500)
+    .background(Theme.background)
 }

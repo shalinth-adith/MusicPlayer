@@ -1,10 +1,3 @@
-//
-//  ContentView.swift
-//  MusicPlayer
-//
-//  Created by shalinth adithyan on 16/04/26.
-//
-
 import SwiftUI
 
 struct ContentView: View {
@@ -16,10 +9,10 @@ struct ContentView: View {
             // Left: sidebar
             SidebarView()
 
-            // Right: main content + art thumbnail stacked over player
+            // Center + Right: main panel and art thumbnail
             VStack(spacing: 0) {
                 HStack(spacing: 0) {
-                    // Main panel
+                    // Main content area
                     Group {
                         switch sidebarVM.selectedTab {
                         case .nowPlaying: NowPlayingView()
@@ -28,7 +21,7 @@ struct ContentView: View {
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-                    // Top-right art thumbnail
+                    // Top-right art thumbnail panel
                     ArtThumbnailView()
                 }
 
@@ -41,9 +34,34 @@ struct ContentView: View {
     }
 }
 
-#Preview {
-    ContentView()
-        .environmentObject(SidebarViewModel())
-        .environmentObject(PlayerViewModel())
-        .environmentObject(LibraryViewModel(playerViewModel: PlayerViewModel()))
+// MARK: - Preview
+
+#Preview("Empty") {
+    let playerVM  = PlayerViewModel()
+    let sidebarVM = SidebarViewModel()
+    let libraryVM = LibraryViewModel(playerViewModel: playerVM)
+    return ContentView()
+        .environmentObject(playerVM)
+        .environmentObject(sidebarVM)
+        .environmentObject(libraryVM)
+}
+
+#Preview("With song playing") {
+    let playerVM  = PlayerViewModel()
+    let sidebarVM = SidebarViewModel()
+    let libraryVM = LibraryViewModel(playerViewModel: playerVM)
+    let song = Song(title: "Ambience : Water", artist: "Nature Sounds", duration: 245, bookmarkData: Data())
+    playerVM.currentSong = song
+    playerVM.isPlaying = true
+    playerVM.duration = 245
+    playerVM.currentTime = 60
+    libraryVM.songs = [
+        song,
+        Song(title: "Midnight Rain",   artist: "Taylor Swift", duration: 174, bookmarkData: Data()),
+        Song(title: "Blinding Lights", artist: "The Weeknd",   duration: 200, bookmarkData: Data()),
+    ]
+    return ContentView()
+        .environmentObject(playerVM)
+        .environmentObject(sidebarVM)
+        .environmentObject(libraryVM)
 }

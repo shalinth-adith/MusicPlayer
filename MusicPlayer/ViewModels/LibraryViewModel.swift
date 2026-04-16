@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 
 @MainActor
 final class LibraryViewModel: ObservableObject {
@@ -55,7 +56,9 @@ final class LibraryViewModel: ObservableObject {
     }
 
     func deleteSongs(at offsets: IndexSet) {
-        songs.remove(atOffsets: offsets)
+        songs = songs.enumerated()
+            .filter { !offsets.contains($0.offset) }
+            .map(\.element)
         saveLibrary()
     }
 
