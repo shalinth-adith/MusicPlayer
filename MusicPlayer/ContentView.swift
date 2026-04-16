@@ -1,18 +1,22 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct ContentView: View {
 
     @EnvironmentObject var sidebarVM: SidebarViewModel
+    @EnvironmentObject var libraryVM: LibraryViewModel
+
+    @State private var isSidebarOpen = false
+
+    private let sidebarWidth: CGFloat = 180
 
     var body: some View {
-        HStack(spacing: 0) {
-            // Left: sidebar
-            SidebarView()
+        ZStack(alignment: .leading) {
 
-            // Center + Right: main panel and art thumbnail
+            // MARK: — Main content (safe-area-aware)
             VStack(spacing: 0) {
+                topBar
                 HStack(spacing: 0) {
-                    // Main content area
                     Group {
                         switch sidebarVM.selectedTab {
                         case .nowPlaying: NowPlayingView()
@@ -21,16 +25,103 @@ struct ContentView: View {
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-                    // Top-right art thumbnail panel
                     ArtThumbnailView()
                 }
+                .frame(maxHeight: .infinity)
 
-                // Bottom: player controls
                 PlayerControlsView()
             }
+
+            // MARK: — Dim overlay
+            if isSidebarOpen {
+                Color.black.opacity(0.45)
+                    .ignoresSafeArea()
+                    .onTapGesture { closeSidebar() }
+                    .transition(.opacity)
+            }
+
+            // MARK: — Sidebar drawer
+            SidebarView(onClose: closeSidebar)
+                .frame(width: sidebarWidth)
+                .ignoresSafeArea(edges: .vertical)
+                .shadow(color: .black.opacity(0.5), radius: 16, x: 4, y: 0)
+                .offset(x: isSidebarOpen ? 0 : -sidebarWidth)
+                .animation(.spring(response: 0.28, dampingFraction: 0.82), value: isSidebarOpen)
         }
-        .background(Theme.background)
-        .ignoresSafeArea()
+        // Background bleeds into safe areas; ZStack content respects them
+        .background(Theme.background.ignoresSafeArea())
+        .gesture(
+            DragGesture(minimumDistance: 20)
+                .onEnded { value in
+                    let startedNearEdge = value.startLocation.x < 40
+                    let swipedRight = value.translation.width > 60
+                    let swipedLeft  = value.translation.width < -60
+                    if startedNearEdge && swipedRight { openSidebar() }
+                    else if swipedLeft { closeSidebar() }
+                }
+        )
+        .fileImporter(
+            isPresented: $libraryVM.isImporting,
+            allowedContentTypes: [.audio, .mp3, .mpeg4Audio, .wav, .aiff],
+            allowsMultipleSelection: true
+        ) { result in
+            switch result {
+            case .success(let urls): libraryVM.importSongs(from: urls)
+            case .failure(let error): libraryVM.errorMessage = error.localizedDescription
+            }
+        }
+    }
+
+    // MARK: — Top bar
+
+    private var topBar: some View {
+        HStack(spacing: 10) {
+            Button { isSidebarOpen ? closeSidebar() : openSidebar() } label: {
+                Image(systemName: "line.3.horizontal")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(Theme.text)
+                    .frame(width: 32, height: 28)
+            }
+            .buttonStyle(BeveledButtonStyle(cornerRadius: 4))
+
+            Text(sidebarVM.selectedTab == .nowPlaying ? "Now Playing" : "Library")
+                .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                .foregroundStyle(Theme.text)
+
+            Spacer()
+
+            Button { libraryVM.isImporting = true } label: {
+                Image(systemName: "plus")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Theme.text)
+                    .frame(width: 32, height: 28)
+            }
+            .buttonStyle(BeveledButtonStyle(cornerRadius: 4))
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        // Extends controlsBg colour up behind the status bar
+        .background(Theme.controlsBg.ignoresSafeArea(edges: .top))
+        .overlay(
+            Rectangle()
+                .frame(height: 1)
+                .foregroundStyle(Theme.bevelDark),
+            alignment: .bottom
+        )
+    }
+
+    // MARK: — Helpers
+
+    private func openSidebar() {
+        withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
+            isSidebarOpen = true
+        }
+    }
+
+    private func closeSidebar() {
+        withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
+            isSidebarOpen = false
+        }
     }
 }
 

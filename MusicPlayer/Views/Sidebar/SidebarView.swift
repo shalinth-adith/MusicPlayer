@@ -1,10 +1,10 @@
 import SwiftUI
-import UniformTypeIdentifiers
 
 struct SidebarView: View {
 
     @EnvironmentObject var sidebarVM: SidebarViewModel
     @EnvironmentObject var libraryVM: LibraryViewModel
+    var onClose: (() -> Void)? = nil
 
     private let items: [(tab: AppTab, label: String, icon: String)] = [
         (.nowPlaying, "Now\nPlaying", "play.circle.fill"),
@@ -13,7 +13,7 @@ struct SidebarView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Header logo
+            // Header logo — top safe area aware
             VStack(spacing: 4) {
                 Image(systemName: "music.note")
                     .font(.system(size: 20, weight: .bold))
@@ -27,7 +27,10 @@ struct SidebarView: View {
             }
             .padding(.vertical, 14)
             .frame(maxWidth: .infinity)
-            .background(Theme.controlsBg)
+            .background(
+                Theme.controlsBg
+                    .ignoresSafeArea(edges: .top)
+            )
             .overlay(
                 Rectangle()
                     .frame(height: 1)
@@ -44,6 +47,7 @@ struct SidebarView: View {
                         isSelected: sidebarVM.selectedTab == item.tab
                     ) {
                         sidebarVM.select(item.tab)
+                        onClose?()
                     }
                 }
 
@@ -58,6 +62,7 @@ struct SidebarView: View {
                     isSelected: false
                 ) {
                     libraryVM.isImporting = true
+                    onClose?()
                 }
             }
             .padding(.top, 6)
@@ -68,26 +73,19 @@ struct SidebarView: View {
             Text("v1.0")
                 .font(.system(size: 9, design: .monospaced))
                 .foregroundStyle(Theme.subtext.opacity(0.5))
-                .padding(.bottom, 8)
+                .padding(.bottom, 20)
         }
-        .frame(width: 110)
-        .background(Theme.sidebar)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(
+            Theme.sidebar
+                .ignoresSafeArea()
+        )
         .overlay(
             Rectangle()
                 .frame(width: 1)
                 .foregroundStyle(Theme.bevelDark),
             alignment: .trailing
         )
-        .fileImporter(
-            isPresented: $libraryVM.isImporting,
-            allowedContentTypes: [.audio, .mp3, .mpeg4Audio, .wav, .aiff],
-            allowsMultipleSelection: true
-        ) { result in
-            switch result {
-            case .success(let urls): libraryVM.importSongs(from: urls)
-            case .failure(let error): libraryVM.errorMessage = error.localizedDescription
-            }
-        }
     }
 }
 

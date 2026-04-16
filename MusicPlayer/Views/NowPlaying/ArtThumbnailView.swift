@@ -24,7 +24,7 @@ struct ArtThumbnailView: View {
                 }
             }
         }
-        .frame(width: 130)
+        .frame(width: 80)
         .insetPanel(cornerRadius: 0)
     }
 }

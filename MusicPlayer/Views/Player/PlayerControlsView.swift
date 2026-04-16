@@ -6,16 +6,22 @@ struct PlayerControlsView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Status bar — marquee track name
+            // Row 1: status bar — marquee track name
             statusBar
 
-            // Seek bar
+            // Row 2: seek bar
             SeekBarView()
 
-            // Transport controls
-            transportBar
+            // Row 3: main playback buttons (centred)
+            playbackRow
+
+            // Row 4: volume + extras
+            extrasRow
         }
-        .background(Theme.controlsBg)
+        .background(
+            Theme.controlsBg
+                .ignoresSafeArea(edges: .bottom)
+        )
         .overlay(
             Rectangle()
                 .frame(height: 1)
@@ -51,68 +57,66 @@ struct PlayerControlsView: View {
         )
     }
 
-    // MARK: - Transport Bar
+    // MARK: - Playback Row (prev / stop / -10 / play / +10 / next)
 
-    private var transportBar: some View {
-        HStack(spacing: 0) {
-            // Left: playback buttons
-            HStack(spacing: 8) {
-                chunkButton("backward.end.fill", size: 14)  { playerVM.previous() }
-                chunkButton("stop.fill",          size: 14)  { playerVM.stop() }
-                chunkButton("gobackward.10",      size: 14)  { playerVM.seekBackward10s() }
-
-                // Main play/pause — larger, circular
-                Button {
-                    playerVM.isPlaying ? playerVM.pause() : playerVM.resume()
-                } label: {
-                    Image(systemName: playerVM.isPlaying ? "pause.fill" : "play.fill")
-                        .font(.system(size: 18, weight: .bold))
-                        .foregroundStyle(.white)
-                        .frame(width: 40, height: 40)
-                }
-                .buttonStyle(CircularBevelButtonStyle())
-
-                chunkButton("goforward.10",      size: 14)  { playerVM.seekForward10s() }
-                chunkButton("forward.end.fill",  size: 14)  { playerVM.next() }
-            }
-            .padding(.leading, 10)
-
+    private var playbackRow: some View {
+        HStack(spacing: 10) {
             Spacer()
+            btn("backward.end.fill",  size: 13) { playerVM.previous() }
+            btn("gobackward.10",       size: 13) { playerVM.seekBackward10s() }
 
-            // Right: mute + volume + shuffle + repeat
-            HStack(spacing: 6) {
-                chunkButton(
-                    playerVM.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill",
-                    size: 12
-                ) { playerVM.toggleMute() }
-
-                // Volume slider — green fill
-                Slider(
-                    value: Binding(
-                        get: { Double(playerVM.volume) },
-                        set: { playerVM.setVolume(Float($0)) }
-                    ),
-                    in: 0...1
-                )
-                .tint(Theme.seekGreen)
-                .frame(width: 72)
-
-                chunkButton("shuffle", size: 12, isActive: playerVM.isShuffle) {
-                    playerVM.toggleShuffle()
-                }
-
-                repeatChunkButton
+            // Play / pause — larger circular
+            Button {
+                playerVM.isPlaying ? playerVM.pause() : playerVM.resume()
+            } label: {
+                Image(systemName: playerVM.isPlaying ? "pause.fill" : "play.fill")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(width: 40, height: 40)
             }
-            .padding(.trailing, 10)
+            .buttonStyle(CircularBevelButtonStyle())
+
+            btn("goforward.10",       size: 13) { playerVM.seekForward10s() }
+            btn("forward.end.fill",   size: 13) { playerVM.next() }
+            btn("stop.fill",          size: 13) { playerVM.stop() }
+            Spacer()
         }
         .padding(.vertical, 8)
-        .background(Theme.controlsBg)
+    }
+
+    // MARK: - Extras Row (mute | volume | shuffle | repeat)
+
+    private var extrasRow: some View {
+        HStack(spacing: 8) {
+            btn(
+                playerVM.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill",
+                size: 12
+            ) { playerVM.toggleMute() }
+
+            Slider(
+                value: Binding(
+                    get: { Double(playerVM.volume) },
+                    set: { playerVM.setVolume(Float($0)) }
+                ),
+                in: 0...1
+            )
+            .tint(Theme.seekGreen)
+            .frame(maxWidth: .infinity)
+
+            btn("shuffle", size: 12, isActive: playerVM.isShuffle) {
+                playerVM.toggleShuffle()
+            }
+
+            repeatButton
+        }
+        .padding(.horizontal, 14)
+        .padding(.bottom, 6)
     }
 
     // MARK: - Helpers
 
     @ViewBuilder
-    private func chunkButton(
+    private func btn(
         _ icon: String,
         size: CGFloat,
         isActive: Bool = false,
@@ -122,12 +126,12 @@ struct PlayerControlsView: View {
             Image(systemName: icon)
                 .font(.system(size: size, weight: .semibold))
                 .foregroundStyle(isActive ? Theme.accent : Theme.text)
-                .frame(width: 32, height: 28)
+                .frame(width: 30, height: 26)
         }
         .buttonStyle(BeveledButtonStyle(cornerRadius: 4))
     }
 
-    private var repeatChunkButton: some View {
+    private var repeatButton: some View {
         Button { playerVM.cycleRepeat() } label: {
             ZStack(alignment: .topTrailing) {
                 Image(systemName: "repeat")
@@ -140,7 +144,7 @@ struct PlayerControlsView: View {
                         .offset(x: 5, y: -4)
                 }
             }
-            .frame(width: 32, height: 28)
+            .frame(width: 30, height: 26)
         }
         .buttonStyle(BeveledButtonStyle(cornerRadius: 4))
     }
@@ -151,7 +155,6 @@ struct PlayerControlsView: View {
 #Preview("Not playing") {
     PlayerControlsView()
         .environmentObject(PlayerViewModel())
-        .frame(width: 500)
 }
 
 #Preview("Playing") {
@@ -162,5 +165,4 @@ struct PlayerControlsView: View {
     vm.currentTime = 60
     return PlayerControlsView()
         .environmentObject(vm)
-        .frame(width: 500)
 }
