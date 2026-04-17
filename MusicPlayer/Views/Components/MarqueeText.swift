@@ -23,13 +23,23 @@ struct MarqueeText: View {
                     .hidden()
                     .background(
                         GeometryReader { inner in
-                            Color.clear.onAppear {
-                                containerWidth = geo.size.width
-                                textWidth = inner.size.width
-                                if inner.size.width > geo.size.width {
-                                    startScroll()
+                            Color.clear
+                                .onAppear {
+                                    containerWidth = geo.size.width
+                                    textWidth = inner.size.width
+                                    if inner.size.width > geo.size.width {
+                                        startScroll()
+                                    }
                                 }
-                            }
+                                .onChange(of: text) { _, _ in
+                                    // Kill the in-flight repeatForever animation, then restart
+                                    withAnimation(.linear(duration: 0)) { offset = 0 }
+                                    textWidth = inner.size.width
+                                    containerWidth = geo.size.width
+                                    if inner.size.width > geo.size.width {
+                                        startScroll()
+                                    }
+                                }
                         }
                     )
 

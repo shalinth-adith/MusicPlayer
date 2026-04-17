@@ -70,31 +70,32 @@ struct NowPlayingView: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 24) {
             ZStack {
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(Theme.controlsBg)
-                    .frame(width: 160, height: 160)
-                VStack(spacing: 8) {
-                    Image(systemName: "film")
-                        .font(.system(size: 44))
-                        .foregroundStyle(Theme.accent.opacity(0.3))
-                    Image(systemName: "music.note")
-                        .font(.system(size: 20))
-                        .foregroundStyle(Theme.subtext.opacity(0.3))
-                }
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Theme.panel)
+                    .frame(width: 200, height: 200)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(Theme.accent.opacity(0.35), lineWidth: 1.5)
+                    )
+                Image(systemName: "music.note")
+                    .font(.system(size: 72, weight: .thin))
+                    .foregroundStyle(Theme.subtext.opacity(0.45))
             }
-            .insetPanel(cornerRadius: 4)
+            .shadow(color: .black.opacity(0.45), radius: 20, x: 0, y: 8)
 
-            VStack(spacing: 4) {
+            VStack(spacing: 8) {
                 Text("No song selected")
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(Theme.subtext)
-                Text("Go to Library to import and play songs")
-                    .font(.system(size: 11))
-                    .foregroundStyle(Theme.subtext.opacity(0.6))
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(Theme.text)
+                Text("Go to Library to import\nand play songs")
+                    .font(.system(size: 13))
+                    .foregroundStyle(Theme.subtext.opacity(0.7))
+                    .multilineTextAlignment(.center)
             }
         }
+        .padding(.horizontal, 32)
     }
 }
 

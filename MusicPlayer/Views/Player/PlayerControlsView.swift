@@ -6,22 +6,12 @@ struct PlayerControlsView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Row 1: status bar — marquee track name
-            statusBar
-
-            // Row 2: seek bar
-            SeekBarView()
-
-            // Row 3: main playback buttons (centred)
-            playbackRow
-
-            // Row 4: volume + extras
-            extrasRow
+            seekSection
+            statusStrip
+            transportRow
+            volumeRow
         }
-        .background(
-            Theme.controlsBg
-                .ignoresSafeArea(edges: .bottom)
-        )
+        .background(Theme.controlsBg.ignoresSafeArea(edges: .bottom))
         .overlay(
             Rectangle()
                 .frame(height: 1)
@@ -30,68 +20,97 @@ struct PlayerControlsView: View {
         )
     }
 
-    // MARK: - Status Bar
+    // MARK: - Seek Section (groove track + time labels)
 
-    private var statusBar: some View {
+    private var seekSection: some View {
+        SeekBarView()
+            .padding(.top, 8)
+            .padding(.bottom, 2)
+    }
+
+    // MARK: - Status Strip
+
+    private var statusStrip: some View {
         HStack(spacing: 6) {
             Image(systemName: playerVM.isPlaying ? "play.fill" : "stop.fill")
-                .font(.system(size: 8))
+                .font(.system(size: 7))
                 .foregroundStyle(playerVM.isPlaying ? Theme.seekGreen : Theme.subtext)
 
             MarqueeText(
-                text: playerVM.currentSong.map { "\($0.title)   —   \($0.artist)" } ?? "Not Playing",
-                font: .system(size: 11),
-                color: Theme.text,
+                text: playerVM.currentSong.map { "\($0.title)   —   \($0.artist)" } ?? "NOT PLAYING",
+                font: .system(size: 10),
+                color: playerVM.isPlaying ? Theme.text : Theme.subtext,
                 speed: 35
             )
-            .frame(height: 16)
+            .frame(height: 14)
         }
-        .padding(.horizontal, 12)
+        .padding(.horizontal, 14)
         .padding(.vertical, 5)
-        .background(Theme.panel.opacity(0.8))
+        .background(Theme.panel.opacity(0.6))
         .overlay(
-            Rectangle()
-                .frame(height: 1)
-                .foregroundStyle(Theme.bevelDark),
+            Rectangle().frame(height: 1).foregroundStyle(Theme.bevelDark),
             alignment: .bottom
         )
     }
 
-    // MARK: - Playback Row (prev / stop / -10 / play / +10 / next)
+    // MARK: - Transport Row
 
-    private var playbackRow: some View {
-        HStack(spacing: 10) {
+    private var transportRow: some View {
+        HStack(spacing: 0) {
             Spacer()
-            btn("backward.end.fill",  size: 13) { playerVM.previous() }
-            btn("gobackward.10",       size: 13) { playerVM.seekBackward10s() }
 
-            // Play / pause — larger circular
+            // Shuffle
+            circleBtn(icon: "shuffle", diameter: 34, isActive: playerVM.isShuffle, iconSize: 12) {
+                playerVM.toggleShuffle()
+            }
+
+            Spacer()
+
+            // Previous
+            circleBtn(icon: "backward.end.fill", diameter: 40, iconSize: 14) {
+                playerVM.previous()
+            }
+
+            Spacer()
+
+            // Play / Pause — primary large button
             Button {
                 playerVM.isPlaying ? playerVM.pause() : playerVM.resume()
             } label: {
                 Image(systemName: playerVM.isPlaying ? "pause.fill" : "play.fill")
-                    .font(.system(size: 18, weight: .bold))
+                    .font(.system(size: 22, weight: .bold))
                     .foregroundStyle(.white)
-                    .frame(width: 40, height: 40)
             }
-            .buttonStyle(CircularBevelButtonStyle())
+            .buttonStyle(CircularBevelButtonStyle(diameter: 56))
 
-            btn("goforward.10",       size: 13) { playerVM.seekForward10s() }
-            btn("forward.end.fill",   size: 13) { playerVM.next() }
-            btn("stop.fill",          size: 13) { playerVM.stop() }
+            Spacer()
+
+            // Next
+            circleBtn(icon: "forward.end.fill", diameter: 40, iconSize: 14) {
+                playerVM.next()
+            }
+
+            Spacer()
+
+            // Repeat
+            repeatBtn
+
             Spacer()
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, 10)
     }
 
-    // MARK: - Extras Row (mute | volume | shuffle | repeat)
+    // MARK: - Volume Row
 
-    private var extrasRow: some View {
-        HStack(spacing: 8) {
-            btn(
-                playerVM.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill",
-                size: 12
-            ) { playerVM.toggleMute() }
+    private var volumeRow: some View {
+        HStack(spacing: 10) {
+            Button { playerVM.toggleMute() } label: {
+                Image(systemName: playerVM.isMuted ? "speaker.slash.fill" : "speaker.fill")
+                    .font(.system(size: 12))
+                    .foregroundStyle(Theme.subtext)
+                    .frame(width: 24, height: 24)
+            }
+            .buttonStyle(.plain)
 
             Slider(
                 value: Binding(
@@ -100,38 +119,41 @@ struct PlayerControlsView: View {
                 ),
                 in: 0...1
             )
-            .tint(Theme.seekGreen)
+            .tint(Theme.accent)
             .frame(maxWidth: .infinity)
 
-            btn("shuffle", size: 12, isActive: playerVM.isShuffle) {
-                playerVM.toggleShuffle()
+            Button { playerVM.setVolume(1.0) } label: {
+                Image(systemName: "speaker.wave.3.fill")
+                    .font(.system(size: 12))
+                    .foregroundStyle(Theme.subtext)
+                    .frame(width: 24, height: 24)
             }
-
-            repeatButton
+            .buttonStyle(.plain)
         }
-        .padding(.horizontal, 14)
-        .padding(.bottom, 6)
+        .padding(.horizontal, 16)
+        .padding(.bottom, 10)
+        .padding(.top, 2)
     }
 
     // MARK: - Helpers
 
     @ViewBuilder
-    private func btn(
-        _ icon: String,
-        size: CGFloat,
+    private func circleBtn(
+        icon: String,
+        diameter: CGFloat,
         isActive: Bool = false,
+        iconSize: CGFloat,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
             Image(systemName: icon)
-                .font(.system(size: size, weight: .semibold))
+                .font(.system(size: iconSize, weight: .semibold))
                 .foregroundStyle(isActive ? Theme.accent : Theme.text)
-                .frame(width: 30, height: 26)
         }
-        .buttonStyle(BeveledButtonStyle(cornerRadius: 4))
+        .buttonStyle(DarkCircularButtonStyle(diameter: diameter))
     }
 
-    private var repeatButton: some View {
+    private var repeatBtn: some View {
         Button { playerVM.cycleRepeat() } label: {
             ZStack(alignment: .topTrailing) {
                 Image(systemName: "repeat")
@@ -141,12 +163,11 @@ struct PlayerControlsView: View {
                     Text("1")
                         .font(.system(size: 7, weight: .bold))
                         .foregroundStyle(Theme.accent)
-                        .offset(x: 5, y: -4)
+                        .offset(x: 6, y: -4)
                 }
             }
-            .frame(width: 30, height: 26)
         }
-        .buttonStyle(BeveledButtonStyle(cornerRadius: 4))
+        .buttonStyle(DarkCircularButtonStyle(diameter: 34))
     }
 }
 
@@ -159,10 +180,10 @@ struct PlayerControlsView: View {
 
 #Preview("Playing") {
     let vm = PlayerViewModel()
-    vm.currentSong = Song(title: "Ambience : Water", artist: "Nature Sounds", duration: 245, bookmarkData: Data())
+    vm.currentSong = Song(title: "Neeye Oli", artist: "Santhosh Narayanan", duration: 301, bookmarkData: Data())
     vm.isPlaying = true
-    vm.duration = 245
-    vm.currentTime = 60
+    vm.duration = 301
+    vm.currentTime = 120
     return PlayerControlsView()
         .environmentObject(vm)
 }

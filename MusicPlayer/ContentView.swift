@@ -16,18 +16,13 @@ struct ContentView: View {
             // MARK: — Main content (safe-area-aware)
             VStack(spacing: 0) {
                 topBar
-                HStack(spacing: 0) {
-                    Group {
-                        switch sidebarVM.selectedTab {
-                        case .nowPlaying: NowPlayingView()
-                        case .library:    LibraryView()
-                        }
+                Group {
+                    switch sidebarVM.selectedTab {
+                    case .nowPlaying: NowPlayingView()
+                    case .library:    LibraryView()
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-                    ArtThumbnailView()
                 }
-                .frame(maxHeight: .infinity)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
 
                 PlayerControlsView()
             }
@@ -75,32 +70,58 @@ struct ContentView: View {
     // MARK: — Top bar
 
     private var topBar: some View {
-        HStack(spacing: 10) {
-            Button { isSidebarOpen ? closeSidebar() : openSidebar() } label: {
-                Image(systemName: "line.3.horizontal")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(Theme.text)
-                    .frame(width: 32, height: 28)
-            }
-            .buttonStyle(BeveledButtonStyle(cornerRadius: 4))
-
-            Text(sidebarVM.selectedTab == .nowPlaying ? "Now Playing" : "Library")
-                .font(.system(size: 12, weight: .semibold, design: .monospaced))
+        ZStack {
+            // Centered title
+            Text(sidebarVM.selectedTab == .nowPlaying ? "NOW PLAYING" : "LIBRARY")
+                .font(.system(size: 13, weight: .bold))
                 .foregroundStyle(Theme.text)
+                .tracking(1.8)
 
-            Spacer()
+            // Left / right actions
+            HStack(spacing: 0) {
+                if sidebarVM.selectedTab == .library {
+                    // Back to Now Playing
+                    Button { sidebarVM.select(.nowPlaying) } label: {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(Theme.text)
+                            .frame(width: 32, height: 28)
+                    }
+                    .buttonStyle(BeveledButtonStyle(cornerRadius: 14))
+                } else {
+                    Button { isSidebarOpen ? closeSidebar() : openSidebar() } label: {
+                        Image(systemName: "line.3.horizontal")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(Theme.text)
+                            .frame(width: 32, height: 28)
+                    }
+                    .buttonStyle(BeveledButtonStyle(cornerRadius: 4))
+                }
 
-            Button { libraryVM.isImporting = true } label: {
-                Image(systemName: "plus")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(Theme.text)
-                    .frame(width: 32, height: 28)
+                Spacer()
+
+                if sidebarVM.selectedTab == .library {
+                    // Search placeholder (wired to libraryVM search in future)
+                    Button { } label: {
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(Theme.text)
+                            .frame(width: 32, height: 28)
+                    }
+                    .buttonStyle(BeveledButtonStyle(cornerRadius: 14))
+                } else {
+                    Button { libraryVM.isImporting = true } label: {
+                        Image(systemName: "plus")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(Theme.text)
+                            .frame(width: 32, height: 28)
+                    }
+                    .buttonStyle(BeveledButtonStyle(cornerRadius: 4))
+                }
             }
-            .buttonStyle(BeveledButtonStyle(cornerRadius: 4))
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
-        // Extends controlsBg colour up behind the status bar
         .background(Theme.controlsBg.ignoresSafeArea(edges: .top))
         .overlay(
             Rectangle()

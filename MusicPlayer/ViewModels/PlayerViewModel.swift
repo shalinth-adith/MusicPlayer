@@ -30,6 +30,9 @@ final class PlayerViewModel: ObservableObject {
         audioService.onPlaybackFinished = { [weak self] in
             Task { @MainActor in self?.handlePlaybackFinished() }
         }
+        audioService.onDurationReady = { [weak self] d in
+            Task { @MainActor in self?.duration = d }
+        }
         audioService.registerRemoteCommands(
             onPlay:     { [weak self] in Task { @MainActor in self?.resume() } },
             onPause:    { [weak self] in Task { @MainActor in self?.pause() } },
@@ -47,7 +50,8 @@ final class PlayerViewModel: ObservableObject {
             audioService.setVolume(isMuted ? 0 : volume)
             audioService.play()
             currentSong = song
-            duration = audioService.duration
+            duration = 0       // will be set by onDurationReady once AVPlayer parses the file
+            currentTime = 0
             isPlaying = true
             if let idx = queue.firstIndex(where: { $0.id == song.id }) {
                 currentIndex = idx
@@ -169,6 +173,11 @@ final class PlayerViewModel: ObservableObject {
             .sink { [weak self] _ in
                 guard let self, self.isPlaying else { return }
                 self.currentTime = self.audioService.currentTime
+                // Fallback: pick up duration if KVO fired before the callback was wired
+                if self.duration <= 0 {
+                    let d = self.audioService.duration
+                    if d > 0 { self.duration = d }
+                }
             }
     }
 

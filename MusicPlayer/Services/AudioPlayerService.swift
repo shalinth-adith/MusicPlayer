@@ -7,8 +7,10 @@ final class AudioPlayerService: NSObject {
 
     private var player: AVPlayer?
     private var endObserver: NSObjectProtocol?
+    private var statusObserver: NSKeyValueObservation?
 
     var onPlaybackFinished: (() -> Void)?
+    var onDurationReady: ((TimeInterval) -> Void)?
 
     var currentTime: TimeInterval {
         get {
@@ -43,10 +45,10 @@ final class AudioPlayerService: NSObject {
     // MARK: - Playback
 
     func load(url: URL) throws {
-        // Remove previous end observer
         if let obs = endObserver {
             NotificationCenter.default.removeObserver(obs)
         }
+        statusObserver?.invalidate()
 
         let item = AVPlayerItem(url: url)
         if player == nil {
@@ -55,7 +57,14 @@ final class AudioPlayerService: NSObject {
             player?.replaceCurrentItem(with: item)
         }
 
-        // Observe when track ends
+        // Fire onDurationReady once AVPlayer has parsed the file header
+        statusObserver = item.observe(\.status, options: [.new]) { [weak self] item, _ in
+            guard item.status == .readyToPlay else { return }
+            let d = item.duration.seconds
+            guard d.isFinite, d > 0 else { return }
+            DispatchQueue.main.async { self?.onDurationReady?(d) }
+        }
+
         endObserver = NotificationCenter.default.addObserver(
             forName: .AVPlayerItemDidPlayToEndTime,
             object: item,
