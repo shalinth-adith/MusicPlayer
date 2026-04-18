@@ -21,6 +21,9 @@ final class PlayerViewModel: ObservableObject {
     private let audioService: AudioPlayerService
     private var timer: AnyCancellable?
     private var currentIndex: Int = 0
+    private let playbackSongKey     = "playback_song_id"
+    private let playbackPositionKey = "playback_position"
+    private var pendingSeekPosition: TimeInterval?
 
     // MARK: - Init
 
@@ -31,7 +34,13 @@ final class PlayerViewModel: ObservableObject {
             Task { @MainActor in self?.handlePlaybackFinished() }
         }
         audioService.onDurationReady = { [weak self] d in
-            Task { @MainActor in self?.duration = d }
+            Task { @MainActor in
+                self?.duration = d
+                if let pos = self?.pendingSeekPosition, pos > 0 {
+                    self?.seek(to: pos)
+                    self?.pendingSeekPosition = nil
+                }
+            }
         }
         audioService.registerRemoteCommands(
             onPlay:     { [weak self] in Task { @MainActor in self?.resume() } },
@@ -140,6 +149,23 @@ final class PlayerViewModel: ObservableObject {
         case .all: repeatMode = .one
         case .one: repeatMode = .off
         }
+    }
+
+    // MARK: - Playback State Persistence
+
+    func savePlaybackState() {
+        guard let song = currentSong else { return }
+        UserDefaults.standard.set(song.id.uuidString, forKey: playbackSongKey)
+        UserDefaults.standard.set(audioService.currentTime, forKey: playbackPositionKey)
+    }
+
+    func restorePlaybackState(from songs: [Song]) {
+        guard let idString = UserDefaults.standard.string(forKey: playbackSongKey),
+              let id = UUID(uuidString: idString),
+              let song = songs.first(where: { $0.id == id }) else { return }
+        let position = UserDefaults.standard.double(forKey: playbackPositionKey)
+        pendingSeekPosition = position > 0 ? position : nil
+        play(song)
     }
 
     // MARK: - Queue Management

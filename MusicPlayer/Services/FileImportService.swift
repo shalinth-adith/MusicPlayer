@@ -53,6 +53,17 @@ final class FileImportService {
         return try? URL(resolvingBookmarkData: data, bookmarkDataIsStale: &isStale)
     }
 
+    /// Opens and holds security scope on the saved folder. Caller must call stopFolderAccess when done.
+    func startFolderAccess() -> URL? {
+        guard let url = resolveFolder() else { return nil }
+        guard url.startAccessingSecurityScopedResource() else { return nil }
+        return url
+    }
+
+    func stopFolderAccess(_ url: URL) {
+        url.stopAccessingSecurityScopedResource()
+    }
+
     /// Scans the given folder (recursively one level) for audio files.
     func scanFolder(_ folderURL: URL) -> [URL] {
         guard folderURL.startAccessingSecurityScopedResource() else { return [] }

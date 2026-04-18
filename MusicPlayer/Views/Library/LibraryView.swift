@@ -113,10 +113,23 @@ struct LibraryView: View {
                 Text("Library Empty")
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(Theme.text)
-                Text("Tap + to import songs from Files")
+                Text("Point to a folder once and new songs sync automatically.")
                     .font(.system(size: 12))
                     .foregroundStyle(Theme.subtext)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
             }
+            Button {
+                libraryVM.isFolderPickerPresented = true
+            } label: {
+                Label("Set Music Folder", systemImage: "folder.badge.plus")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(Theme.accent, in: RoundedRectangle(cornerRadius: 8))
+            }
+            .buttonStyle(.plain)
         }
     }
 

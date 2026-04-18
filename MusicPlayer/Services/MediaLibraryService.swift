@@ -21,6 +21,16 @@ final class MediaLibraryService {
         }
     }
 
+    // MARK: - Change Monitoring
+
+    func beginMonitoring() {
+        MPMediaLibrary.default().beginGeneratingLibraryChangeNotifications()
+    }
+
+    func endMonitoring() {
+        MPMediaLibrary.default().endGeneratingLibraryChangeNotifications()
+    }
+
     // MARK: - Fetch
 
     /// Returns all songs available on the device (skips cloud-only items).

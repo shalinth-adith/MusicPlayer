@@ -96,6 +96,7 @@ struct SidebarView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 14)
+        .padding(.top, 44)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Theme.controlsBg.ignoresSafeArea(edges: .top))
         .overlay(

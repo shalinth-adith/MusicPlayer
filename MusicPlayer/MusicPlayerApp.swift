@@ -19,6 +19,7 @@ struct MusicPlayerApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .task { libraryVM.syncMediaLibrary() }
                 .environmentObject(playerVM)
                 .environmentObject(libraryVM)
                 .environmentObject(sidebarVM)
@@ -32,10 +33,22 @@ struct MusicPlayerApp: App {
                 }
         }
         .onChange(of: scenePhase) { _, newPhase in
-            if newPhase == .active {
-                libraryVM.syncMediaLibrary()   // device Music library (iTunes/Apple Music)
-                libraryVM.syncMusicFolder()    // user-chosen Files app folder
-                libraryVM.syncDocuments()      // app Documents folder
+            switch newPhase {
+            case .active:
+                libraryVM.syncMediaLibrary()
+                libraryVM.syncMusicFolder()
+                libraryVM.syncDocuments()
+                libraryVM.startFolderWatcher()
+                libraryVM.startMediaLibraryMonitoring()
+                if playerVM.currentSong == nil {
+                    playerVM.restorePlaybackState(from: libraryVM.songs)
+                }
+            case .background:
+                libraryVM.stopFolderWatcher()
+                libraryVM.stopMediaLibraryMonitoring()
+                playerVM.savePlaybackState()
+            default:
+                break
             }
         }
     }

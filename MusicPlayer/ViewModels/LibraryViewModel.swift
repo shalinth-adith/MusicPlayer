@@ -22,16 +22,22 @@ final class LibraryViewModel: ObservableObject {
     private let mediaLibraryService: MediaLibraryService
     private let playerViewModel: PlayerViewModel
     private let storageKey = "saved_library"
+    private let folderWatcher: FolderWatcherService
+    private var watcherCancellable: AnyCancellable?
+    private var activeFolderURL: URL?
+    private var mediaLibraryCancellable: AnyCancellable?
 
     // MARK: - Init
 
     init(
         fileImportService: FileImportService = FileImportService(),
         mediaLibraryService: MediaLibraryService = MediaLibraryService(),
+        folderWatcher: FolderWatcherService = FolderWatcherService(),
         playerViewModel: PlayerViewModel
     ) {
         self.fileImportService = fileImportService
         self.mediaLibraryService = mediaLibraryService
+        self.folderWatcher = folderWatcher
         self.playerViewModel = playerViewModel
         loadLibrary()
     }
@@ -46,11 +52,31 @@ final class LibraryViewModel: ObservableObject {
             importMediaLibrarySongs()
         case .notDetermined:
             mediaLibraryService.requestAuthorization { [weak self] granted in
-                if granted { self?.importMediaLibrarySongs() }
+                if granted {
+                    self?.importMediaLibrarySongs()
+                    self?.startMediaLibraryMonitoring()
+                }
             }
         default:
             break // denied — user must enable in Settings
         }
+    }
+
+    func startMediaLibraryMonitoring() {
+        guard mediaLibraryService.authorizationStatus == .authorized else { return }
+        mediaLibraryService.beginMonitoring()
+        mediaLibraryCancellable = NotificationCenter.default
+            .publisher(for: .MPMediaLibraryDidChange)
+            .debounce(for: .seconds(2), scheduler: DispatchQueue.main)
+            .sink { [weak self] _ in
+                Task { @MainActor [weak self] in self?.syncMediaLibrary() }
+            }
+    }
+
+    func stopMediaLibraryMonitoring() {
+        mediaLibraryCancellable?.cancel()
+        mediaLibraryCancellable = nil
+        mediaLibraryService.endMonitoring()
     }
 
     private func importMediaLibrarySongs() {
@@ -75,6 +101,39 @@ final class LibraryViewModel: ObservableObject {
     func setMusicFolder(url: URL) {
         fileImportService.saveFolderBookmark(url: url)
         syncMusicFolder()
+        startWatchingFolder()
+    }
+
+    func startFolderWatcher() {
+        guard fileImportService.hasSavedFolder else { return }
+        startWatchingFolder()
+    }
+
+    func stopFolderWatcher() {
+        stopWatchingFolder()
+    }
+
+    private func startWatchingFolder() {
+        stopWatchingFolder()
+        guard let url = fileImportService.startFolderAccess() else { return }
+        activeFolderURL = url
+        folderWatcher.startWatching(folderURL: url)
+        watcherCancellable = folderWatcher.changePublisher
+            .debounce(for: .seconds(1.5), scheduler: DispatchQueue.global(qos: .utility))
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] in
+                Task { @MainActor [weak self] in self?.syncMusicFolder() }
+            }
+    }
+
+    private func stopWatchingFolder() {
+        watcherCancellable?.cancel()
+        watcherCancellable = nil
+        folderWatcher.stopWatching()
+        if let url = activeFolderURL {
+            fileImportService.stopFolderAccess(url)
+            activeFolderURL = nil
+        }
     }
 
     /// Scans the saved music folder and imports any new audio files not already in the library.
