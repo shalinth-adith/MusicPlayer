@@ -8,6 +8,13 @@ final class LibraryViewModel: ObservableObject {
     // MARK: - Published State
 
     @Published var songs: [Song] = []
+
+    var artists: [(name: String, songs: [Song])] {
+        let grouped = Dictionary(grouping: songs, by: \.artist)
+        return grouped
+            .map { (name: $0.key, songs: $0.value.sorted { $0.title < $1.title }) }
+            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
     @Published var isImporting: Bool = false
     @Published var isFolderPickerPresented: Bool = false
     @Published var errorMessage: String?
