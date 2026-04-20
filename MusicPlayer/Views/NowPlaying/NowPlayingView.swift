@@ -5,53 +5,57 @@ struct NowPlayingView: View {
     @EnvironmentObject var playerVM: PlayerViewModel
 
     var body: some View {
-        ZStack {
-            Theme.background
+        GeometryReader { geo in
+            ZStack {
+                Theme.background
 
-            if let song = playerVM.currentSong {
-                VStack(spacing: 20) {
-                    // Album art in WMP9-style inset panel
+                if let song = playerVM.currentSong {
+                    // Artwork — pinned to exact GeometryReader size so scaledToFill can't overflow
                     Group {
                         if let data = song.artworkData, let image = UIImage(data: data) {
                             Image(uiImage: image)
                                 .resizable()
                                 .scaledToFill()
-                                .clipped()
+                                .frame(width: geo.size.width, height: geo.size.height)
                         } else {
                             placeholderArt
+                                .frame(width: geo.size.width, height: geo.size.height)
                         }
                     }
-                    .frame(width: 240, height: 240)
-                    .insetPanel(cornerRadius: 4)
-                    .shadow(color: .black.opacity(0.6), radius: 16, x: 0, y: 6)
-
-                    // Song info
-                    VStack(spacing: 5) {
-                        Text(song.title)
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(Theme.text)
-                            .lineLimit(1)
-                        Text(song.artist)
-                            .font(.system(size: 12))
-                            .foregroundStyle(Theme.subtext)
-                            .lineLimit(1)
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .frame(maxWidth: 260)
-                    .background(
-                        RoundedRectangle(cornerRadius: 4)
-                            .fill(Theme.panel)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 4)
-                                    .stroke(Theme.border, lineWidth: 1)
+                    .clipped()
+                    .mask(Rectangle().blur(radius: 20))
+                    .overlay(alignment: .bottom) {
+                        // Gradient scrim + song info, constrained inside the artwork
+                        VStack(spacing: 4) {
+                            Text(song.title)
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                            Text(song.artist)
+                                .font(.system(size: 12))
+                                .foregroundStyle(.white.opacity(0.7))
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                        .frame(width: geo.size.width)
+                        .background(
+                            LinearGradient(
+                                colors: [.clear, Color.black.opacity(0.78)],
+                                startPoint: .top,
+                                endPoint: .bottom
                             )
-                    )
+                        )
+                    }
+                } else {
+                    emptyState
+                        .frame(width: geo.size.width, height: geo.size.height)
                 }
-                .padding()
-            } else {
-                emptyState
             }
+            .frame(width: geo.size.width, height: geo.size.height)
+            .clipped()
         }
     }
 
