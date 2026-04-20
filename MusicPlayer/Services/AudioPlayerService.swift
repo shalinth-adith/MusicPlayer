@@ -1,7 +1,30 @@
 import AVFoundation
 import MediaPlayer
 
-final class AudioPlayerService: NSObject {
+protocol AudioPlayerServiceProtocol: AnyObject {
+    var onPlaybackFinished: (() -> Void)? { get set }
+    var onDurationReady: ((TimeInterval) -> Void)? { get set }
+    var onInterruptionEnded: (() -> Void)? { get set }
+    var currentTime: TimeInterval { get set }
+    var duration: TimeInterval { get }
+    var isPlaying: Bool { get }
+    func configureAudioSession()
+    func load(url: URL) throws
+    func play()
+    func pause()
+    func stop()
+    func seek(to time: TimeInterval)
+    func setVolume(_ volume: Float)
+    func updateNowPlaying(song: Song)
+    func registerRemoteCommands(
+        onPlay: @escaping () -> Void,
+        onPause: @escaping () -> Void,
+        onNext: @escaping () -> Void,
+        onPrevious: @escaping () -> Void
+    )
+}
+
+final class AudioPlayerService: NSObject, AudioPlayerServiceProtocol {
 
     // MARK: - Properties
 
@@ -119,18 +142,22 @@ final class AudioPlayerService: NSObject {
     // MARK: - Lock Screen / Remote Controls
 
     func updateNowPlaying(song: Song) {
-        var info: [String: Any] = [
-            MPMediaItemPropertyTitle: song.title,
-            MPMediaItemPropertyArtist: song.artist,
-            MPMediaItemPropertyPlaybackDuration: song.duration,
-            MPNowPlayingInfoPropertyElapsedPlaybackTime: currentTime,
-            MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? 1.0 : 0.0
-        ]
-        if let artworkData = song.artworkData,
-           let image = UIImage(data: artworkData) {
-            info[MPMediaItemPropertyArtwork] = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
+        let elapsed = currentTime
+        let playing = isPlaying
+        DispatchQueue.global(qos: .userInitiated).async {
+            var info: [String: Any] = [
+                MPMediaItemPropertyTitle: song.title,
+                MPMediaItemPropertyArtist: song.artist,
+                MPMediaItemPropertyPlaybackDuration: song.duration,
+                MPNowPlayingInfoPropertyElapsedPlaybackTime: elapsed,
+                MPNowPlayingInfoPropertyPlaybackRate: playing ? 1.0 : 0.0
+            ]
+            if let artworkData = song.artworkData,
+               let image = UIImage(data: artworkData) {
+                info[MPMediaItemPropertyArtwork] = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
+            }
+            MPNowPlayingInfoCenter.default().nowPlayingInfo = info
         }
-        MPNowPlayingInfoCenter.default().nowPlayingInfo = info
     }
 
     func registerRemoteCommands(

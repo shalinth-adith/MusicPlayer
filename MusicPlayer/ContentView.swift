@@ -96,6 +96,7 @@ struct ContentView: View {
                             .frame(width: 32, height: 28)
                     }
                     .buttonStyle(BeveledButtonStyle(cornerRadius: 4))
+                    .accessibilityLabel("Menu")
                 }
 
                 Spacer()

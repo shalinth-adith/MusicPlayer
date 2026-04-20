@@ -1,39 +1,74 @@
-//
-//  MusicPlayerUITests.swift
-//  MusicPlayerUITests
-//
-//  Created by shalinth adithyan on 16/04/26.
-//
-
 import XCTest
 
 final class MusicPlayerUITests: XCTestCase {
 
+    private var app: XCUIApplication!
+
     override func setUpWithError() throws {
-        // Put setup code here. This method is called before the invocation of each test method in the class.
-
-        // In UI tests it is usually best to stop immediately when a failure occurs.
         continueAfterFailure = false
-
-        // In UI tests it’s important to set the initial state - such as interface orientation - required for your tests before they run. The setUp method is a good place to do this.
+        app = XCUIApplication()
+        app.launch()
     }
 
     override func tearDownWithError() throws {
-        // Put teardown code here. This method is called after the invocation of each test method in the class.
+        app = nil
+    }
+
+    // MARK: - Launch
+
+    @MainActor
+    func testAppLaunchShowsNowPlayingScreen() throws {
+        XCTAssert(app.staticTexts["NOW PLAYING"].exists)
+    }
+
+    // MARK: - Sidebar
+
+    @MainActor
+    func testMenuButtonOpensSidebar() throws {
+        app.buttons["Menu"].tap()
+        XCTAssert(app.buttons["LIBRARY"].waitForExistence(timeout: 2))
     }
 
     @MainActor
-    func testExample() throws {
-        // UI tests must launch the application that they test.
-        let app = XCUIApplication()
-        app.launch()
-
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
+    func testSidebarClosesOnOverlayTap() throws {
+        app.buttons["Menu"].tap()
+        XCTAssert(app.buttons["LIBRARY"].waitForExistence(timeout: 2))
+        // Tap the dim overlay (center-right of screen, outside sidebar)
+        let screen = app.coordinate(withNormalizedOffset: CGVector(dx: 0.75, dy: 0.5))
+        screen.tap()
+        XCTAssertFalse(app.buttons["LIBRARY"].waitForExistence(timeout: 1))
     }
+
+    // MARK: - Navigation
+
+    @MainActor
+    func testNavigateToLibrary() throws {
+        app.buttons["Menu"].tap()
+        XCTAssert(app.buttons["LIBRARY"].waitForExistence(timeout: 2))
+        app.buttons["LIBRARY"].tap()
+        XCTAssert(app.staticTexts["LIBRARY"].waitForExistence(timeout: 2))
+    }
+
+    @MainActor
+    func testNavigateBackToNowPlaying() throws {
+        // Go to Library first
+        app.buttons["Menu"].tap()
+        app.buttons["LIBRARY"].tap()
+        XCTAssert(app.staticTexts["LIBRARY"].waitForExistence(timeout: 2))
+        // Tap back chevron
+        app.buttons.element(boundBy: 0).tap()
+        XCTAssert(app.staticTexts["NOW PLAYING"].waitForExistence(timeout: 2))
+    }
+
+    @MainActor
+    func testNowPlayingShowsEmptyState() throws {
+        XCTAssert(app.staticTexts["No song selected"].waitForExistence(timeout: 3))
+    }
+
+    // MARK: - Performance
 
     @MainActor
     func testLaunchPerformance() throws {
-        // This measures how long it takes to launch your application.
         measure(metrics: [XCTApplicationLaunchMetric()]) {
             XCUIApplication().launch()
         }

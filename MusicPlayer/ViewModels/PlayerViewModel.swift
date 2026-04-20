@@ -18,16 +18,17 @@ final class PlayerViewModel: ObservableObject {
 
     // MARK: - Private
 
-    private let audioService: AudioPlayerService
+    private let audioService: any AudioPlayerServiceProtocol
     private var timer: AnyCancellable?
     private var currentIndex: Int = 0
     private let playbackSongKey     = "playback_song_id"
     private let playbackPositionKey = "playback_position"
     private var pendingSeekPosition: TimeInterval?
+    private var resolvedURLCache: [UUID: URL] = [:]
 
     // MARK: - Init
 
-    init(audioService: AudioPlayerService = AudioPlayerService()) {
+    init(audioService: any AudioPlayerServiceProtocol = AudioPlayerService()) {
         self.audioService = audioService
         audioService.configureAudioSession()
         audioService.onPlaybackFinished = { [weak self] in
@@ -54,7 +55,7 @@ final class PlayerViewModel: ObservableObject {
     // MARK: - Playback Controls
 
     func play(_ song: Song) {
-        guard let url = song.resolvedURL else { return }
+        guard let url = resolvedURLCache[song.id] ?? song.resolvedURL else { return }
         do {
             try audioService.load(url: url)
             audioService.setVolume(isMuted ? 0 : volume)
@@ -172,9 +173,21 @@ final class PlayerViewModel: ObservableObject {
     // MARK: - Queue Management
 
     func setQueue(_ songs: [Song], playingIndex index: Int = 0) {
+        resolvedURLCache = [:]
         queue = songs
         currentIndex = index
+        prefetchURLs(for: songs)
         if !songs.isEmpty { play(songs[index]) }
+    }
+
+    private func prefetchURLs(for songs: [Song]) {
+        Task.detached(priority: .userInitiated) { [weak self] in
+            var cache: [UUID: URL] = [:]
+            for song in songs {
+                if let url = song.resolvedURL { cache[song.id] = url }
+            }
+            await MainActor.run { self?.resolvedURLCache.merge(cache) { _, new in new } }
+        }
     }
 
     // MARK: - Private Helpers
