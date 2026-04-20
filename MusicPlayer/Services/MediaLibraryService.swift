@@ -3,7 +3,7 @@ import UIKit
 
 /// Provides access to songs already on the device via MPMediaLibrary
 /// (music synced with iTunes, downloaded via Apple Music, saved offline).
-final class MediaLibraryService {
+final class MediaLibraryService: @unchecked Sendable {
 
     // MARK: - Authorization
 
@@ -53,18 +53,12 @@ final class MediaLibraryService {
             let artist = item.artist ?? "Unknown Artist"
             let duration = item.playbackDuration
 
-            var artworkData: Data?
-            if let artwork = item.artwork {
-                let image = artwork.image(at: CGSize(width: 300, height: 300))
-                artworkData = image?.jpegData(compressionQuality: 0.8)
-            }
-
             return Song(
                 title: title,
                 artist: artist,
                 duration: duration,
                 bookmarkData: Data(),
-                artworkData: artworkData,
+                artworkData: nil,
                 assetURLString: assetURL.absoluteString
             )
         }

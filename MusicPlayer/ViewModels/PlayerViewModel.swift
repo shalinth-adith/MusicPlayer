@@ -42,6 +42,7 @@ final class PlayerViewModel: ObservableObject {
                 }
             }
         }
+        audioService.onInterruptionEnded = { [weak self] in Task { @MainActor in self?.resume() } }
         audioService.registerRemoteCommands(
             onPlay:     { [weak self] in Task { @MainActor in self?.resume() } },
             onPause:    { [weak self] in Task { @MainActor in self?.pause() } },

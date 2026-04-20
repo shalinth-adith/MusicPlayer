@@ -39,7 +39,7 @@ final class LibraryViewModel: ObservableObject {
         self.mediaLibraryService = mediaLibraryService
         self.folderWatcher = folderWatcher
         self.playerViewModel = playerViewModel
-        loadLibrary()
+        Task { await loadLibraryAsync() }
     }
 
     // MARK: - Device Music Library Sync
@@ -80,18 +80,22 @@ final class LibraryViewModel: ObservableObject {
     }
 
     private func importMediaLibrarySongs() {
-        let mediaSongs = mediaLibraryService.fetchAllSongs()
-        guard !mediaSongs.isEmpty else { return }
-
-        let existingAssetURLs = Set(songs.compactMap { $0.assetURLString })
-        let newSongs = mediaSongs.filter { song in
-            guard let url = song.assetURLString else { return false }
-            return !existingAssetURLs.contains(url)
-        }
-
-        if !newSongs.isEmpty {
-            songs.append(contentsOf: newSongs)
-            saveLibrary()
+        let service = mediaLibraryService
+        Task.detached(priority: .userInitiated) { [weak self] in
+            let mediaSongs = service.fetchAllSongs()
+            guard !mediaSongs.isEmpty else { return }
+            await MainActor.run { [weak self] in
+                guard let self else { return }
+                let existingAssetURLs = Set(self.songs.compactMap { $0.assetURLString })
+                let newSongs = mediaSongs.filter { song in
+                    guard let url = song.assetURLString else { return false }
+                    return !existingAssetURLs.contains(url)
+                }
+                if !newSongs.isEmpty {
+                    self.songs.append(contentsOf: newSongs)
+                    self.saveLibrary()
+                }
+            }
         }
     }
 
@@ -138,24 +142,28 @@ final class LibraryViewModel: ObservableObject {
 
     /// Scans the saved music folder and imports any new audio files not already in the library.
     func syncMusicFolder() {
-        guard let folderURL = fileImportService.resolveFolder() else { return }
-        let urls = fileImportService.scanFolder(folderURL)
-        guard !urls.isEmpty else { return }
+        let service = fileImportService
+        let currentSongs = songs
+        Task.detached(priority: .utility) { [weak self] in
+            guard let folderURL = service.resolveFolder() else { return }
+            let urls = service.scanFolder(folderURL)
+            guard !urls.isEmpty else { return }
 
-        let existingPaths = Set(songs.compactMap { $0.resolvedURL?.path })
-        var added: [Song] = []
-
-        for url in urls {
-            guard !existingPaths.contains(url.path) else { continue }
-            if let song = try? fileImportService.importFolderSong(from: url, folderURL: folderURL) {
-                added.append(song)
+            let existingPaths = Set(currentSongs.compactMap { $0.resolvedURL?.path })
+            var added: [Song] = []
+            for url in urls {
+                guard !existingPaths.contains(url.path) else { continue }
+                if let song = try? service.importFolderSong(from: url, folderURL: folderURL) {
+                    added.append(song)
+                }
             }
-        }
-
-        if !added.isEmpty {
-            songs.append(contentsOf: added)
-            saveLibrary()
-            syncMessage = "Added \(added.count) new song\(added.count == 1 ? "" : "s")"
+            guard !added.isEmpty else { return }
+            await MainActor.run { [weak self] in
+                guard let self else { return }
+                self.songs.append(contentsOf: added)
+                self.saveLibrary()
+                self.syncMessage = "Added \(added.count) new song\(added.count == 1 ? "" : "s")"
+            }
         }
     }
 
@@ -163,23 +171,26 @@ final class LibraryViewModel: ObservableObject {
 
     /// Scans the app's Documents folder and imports any audio files not already in the library.
     func syncDocuments() {
-        let urls = fileImportService.scanDocumentsDirectory()
-        guard !urls.isEmpty else { return }
+        let service = fileImportService
+        let currentSongs = songs
+        Task.detached(priority: .utility) { [weak self] in
+            let urls = service.scanDocumentsDirectory()
+            guard !urls.isEmpty else { return }
 
-        // Build a set of paths already tracked so we can skip duplicates
-        let existingPaths = Set(songs.compactMap { $0.resolvedURL?.path })
-
-        var added: [Song] = []
-        for url in urls {
-            guard !existingPaths.contains(url.path) else { continue }
-            if let song = try? fileImportService.importDocumentSong(from: url) {
-                added.append(song)
+            let existingPaths = Set(currentSongs.compactMap { $0.resolvedURL?.path })
+            var added: [Song] = []
+            for url in urls {
+                guard !existingPaths.contains(url.path) else { continue }
+                if let song = try? service.importDocumentSong(from: url) {
+                    added.append(song)
+                }
             }
-        }
-
-        if !added.isEmpty {
-            songs.append(contentsOf: added)
-            saveLibrary()
+            guard !added.isEmpty else { return }
+            await MainActor.run { [weak self] in
+                guard let self else { return }
+                self.songs.append(contentsOf: added)
+                self.saveLibrary()
+            }
         }
     }
 
@@ -228,9 +239,17 @@ final class LibraryViewModel: ObservableObject {
         }
     }
 
-    private func loadLibrary() {
-        guard let data = UserDefaults.standard.data(forKey: storageKey),
-              let saved = try? JSONDecoder().decode([Song].self, from: data) else { return }
-        songs = saved
+    private func loadLibraryAsync() async {
+        let key = storageKey
+        let decoded: [Song]? = await Task.detached(priority: .userInitiated) {
+            guard let data = UserDefaults.standard.data(forKey: key) else { return nil }
+            return try? JSONDecoder().decode([Song].self, from: data)
+        }.value
+        if let saved = decoded {
+            songs = saved
+        }
+        if playerViewModel.currentSong == nil {
+            playerViewModel.restorePlaybackState(from: songs)
+        }
     }
 }

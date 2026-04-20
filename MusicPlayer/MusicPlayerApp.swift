@@ -40,9 +40,6 @@ struct MusicPlayerApp: App {
                 libraryVM.syncDocuments()
                 libraryVM.startFolderWatcher()
                 libraryVM.startMediaLibraryMonitoring()
-                if playerVM.currentSong == nil {
-                    playerVM.restorePlaybackState(from: libraryVM.songs)
-                }
             case .background:
                 libraryVM.stopFolderWatcher()
                 libraryVM.stopMediaLibraryMonitoring()

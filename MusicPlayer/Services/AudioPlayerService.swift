@@ -11,6 +11,7 @@ final class AudioPlayerService: NSObject {
 
     var onPlaybackFinished: (() -> Void)?
     var onDurationReady: ((TimeInterval) -> Void)?
+    var onInterruptionEnded: (() -> Void)?
 
     var currentTime: TimeInterval {
         get {
@@ -39,6 +40,26 @@ final class AudioPlayerService: NSObject {
             try AVAudioSession.sharedInstance().setActive(true)
         } catch {
             print("AudioPlayerService: Failed to configure audio session — \(error)")
+        }
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleInterruption(_:)),
+            name: AVAudioSession.interruptionNotification,
+            object: AVAudioSession.sharedInstance()
+        )
+    }
+
+    @objc private func handleInterruption(_ notification: Notification) {
+        guard let info = notification.userInfo,
+              let typeValue = info[AVAudioSessionInterruptionTypeKey] as? UInt,
+              let type = AVAudioSession.InterruptionType(rawValue: typeValue) else { return }
+        if type == .ended {
+            let optionsValue = info[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
+            let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
+            if options.contains(.shouldResume) {
+                try? AVAudioSession.sharedInstance().setActive(true)
+                onInterruptionEnded?()
+            }
         }
     }
 

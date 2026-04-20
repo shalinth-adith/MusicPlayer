@@ -1,7 +1,7 @@
 import AVFoundation
 import Foundation
 
-final class FileImportService {
+final class FileImportService: @unchecked Sendable {
 
     enum ImportError: Error, LocalizedError {
         case accessDenied
