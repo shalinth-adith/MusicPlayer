@@ -5,56 +5,64 @@ struct ContentView: View {
 
     @EnvironmentObject var sidebarVM: SidebarViewModel
     @EnvironmentObject var libraryVM: LibraryViewModel
+    @EnvironmentObject var playerVM: PlayerViewModel
+    @EnvironmentObject var themeManager: ThemeManager
 
-    @State private var isSidebarOpen = false
+    @State private var showNowPlaying = false
 
-    private let sidebarWidth: CGFloat = 180
+    @ViewBuilder
+    private var miniPlayerBar: some View {
+        if playerVM.currentSong != nil {
+            MiniPlayerBarView(showNowPlaying: $showNowPlaying)
+                .background(.ultraThinMaterial)
+                .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: -2)
+        }
+    }
 
     var body: some View {
-        ZStack(alignment: .leading) {
+        TabView(selection: $sidebarVM.selectedTab) {
+            PlaceholderTabView(title: "Radio", icon: "radio")
+                .safeAreaInset(edge: .bottom, spacing: 0) { miniPlayerBar }
+                .tabItem { Label("Radio", systemImage: "radio") }
+                .tag(AppTab.radio)
 
-            // MARK: — Main content (safe-area-aware)
-            VStack(spacing: 0) {
-                topBar
-                Group {
-                    switch sidebarVM.selectedTab {
-                    case .nowPlaying: NowPlayingView()
-                    case .library:    LibraryView()
-                    }
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            PlaceholderTabView(title: "Playlists", icon: "music.note.list")
+                .safeAreaInset(edge: .bottom, spacing: 0) { miniPlayerBar }
+                .tabItem { Label("Playlists", systemImage: "music.note.list") }
+                .tag(AppTab.playlists)
 
-                PlayerControlsView()
+            NavigationStack {
+                LibraryView()
             }
+            .safeAreaInset(edge: .bottom, spacing: 0) { miniPlayerBar }
+            .tabItem { Label("Artists", systemImage: "person.crop.rectangle.stack") }
+            .tag(AppTab.artists)
 
-            // MARK: — Dim overlay
-            if isSidebarOpen {
-                Color.black.opacity(0.45)
-                    .ignoresSafeArea()
-                    .onTapGesture { closeSidebar() }
-                    .transition(.opacity)
+            PlaceholderTabView(title: "Songs", icon: "music.note")
+                .safeAreaInset(edge: .bottom, spacing: 0) { miniPlayerBar }
+                .tabItem { Label("Songs", systemImage: "music.note") }
+                .tag(AppTab.songs)
+
+            NavigationStack {
+                MoreTabView()
             }
-
-            // MARK: — Sidebar drawer
-            SidebarView(onClose: closeSidebar)
-                .frame(width: sidebarWidth)
-                .ignoresSafeArea(edges: .vertical)
-                .shadow(color: .black.opacity(0.5), radius: 16, x: 4, y: 0)
-                .offset(x: isSidebarOpen ? 0 : -sidebarWidth)
-                .animation(.spring(response: 0.28, dampingFraction: 0.82), value: isSidebarOpen)
+            .safeAreaInset(edge: .bottom, spacing: 0) { miniPlayerBar }
+            .tabItem { Label("More", systemImage: "ellipsis") }
+            .tag(AppTab.more)
         }
-        // Background bleeds into safe areas; ZStack content respects them
-        .background(Theme.background.ignoresSafeArea())
-        .gesture(
-            DragGesture(minimumDistance: 20)
-                .onEnded { value in
-                    let startedNearEdge = value.startLocation.x < 40
-                    let swipedRight = value.translation.width > 60
-                    let swipedLeft  = value.translation.width < -60
-                    if startedNearEdge && swipedRight { openSidebar() }
-                    else if swipedLeft { closeSidebar() }
-                }
-        )
+        .tint(Theme.accent)
+        .fullScreenCover(isPresented: $showNowPlaying) {
+            NowPlayingView()
+                .environmentObject(playerVM)
+                .environmentObject(sidebarVM)
+                .environmentObject(themeManager)
+        }
+        .onChange(of: playerVM.showNowPlayingSheet) { _, new in
+            if new {
+                showNowPlaying = true
+                playerVM.showNowPlayingSheet = false
+            }
+        }
         .fileImporter(
             isPresented: $libraryVM.isImporting,
             allowedContentTypes: [.audio, .mp3, .mpeg4Audio, .wav, .aiff],
@@ -66,84 +74,55 @@ struct ContentView: View {
             }
         }
     }
+}
 
-    // MARK: — Top bar
+// MARK: - More Tab
 
-    private var topBar: some View {
-        ZStack {
-            // Centered title
-            Text(sidebarVM.selectedTab == .nowPlaying ? "NOW PLAYING" : "LIBRARY")
-                .font(.system(size: 13, weight: .bold))
-                .foregroundStyle(Theme.text)
-                .tracking(1.8)
+private struct MoreTabView: View {
+    @EnvironmentObject var themeManager: ThemeManager
 
-            // Left / right actions
-            HStack(spacing: 0) {
-                if sidebarVM.selectedTab == .library {
-                    // Back to Now Playing
-                    Button { sidebarVM.select(.nowPlaying) } label: {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(Theme.text)
-                            .frame(width: 32, height: 28)
-                    }
-                    .buttonStyle(BeveledButtonStyle(cornerRadius: 14))
-                } else {
-                    Button { isSidebarOpen ? closeSidebar() : openSidebar() } label: {
-                        Image(systemName: "line.3.horizontal")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(Theme.text)
-                            .frame(width: 32, height: 28)
-                    }
-                    .buttonStyle(BeveledButtonStyle(cornerRadius: 4))
-                    .accessibilityLabel("Menu")
-                }
-
-                Spacer()
-
-                if sidebarVM.selectedTab == .library {
-                    // Search placeholder (wired to libraryVM search in future)
-                    Button { } label: {
-                        Image(systemName: "magnifyingglass")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(Theme.text)
-                            .frame(width: 32, height: 28)
-                    }
-                    .buttonStyle(BeveledButtonStyle(cornerRadius: 14))
-                } else {
-                    Button { libraryVM.isImporting = true } label: {
-                        Image(systemName: "plus")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(Theme.text)
-                            .frame(width: 32, height: 28)
-                    }
-                    .buttonStyle(BeveledButtonStyle(cornerRadius: 4))
+    var body: some View {
+        List {
+            Section("Appearance") {
+                HStack {
+                    Label(
+                        themeManager.isDark ? "Dark Mode" : "Light Mode",
+                        systemImage: themeManager.isDark ? "moon.fill" : "sun.max.fill"
+                    )
+                    Spacer()
+                    Toggle("", isOn: Binding(
+                        get: { themeManager.isDark },
+                        set: { _ in themeManager.toggle() }
+                    ))
+                    .labelsHidden()
+                    .tint(Theme.accent)
                 }
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-        .background(Theme.controlsBg.ignoresSafeArea(edges: .top))
-        .overlay(
-            Rectangle()
-                .frame(height: 1)
-                .foregroundStyle(Theme.bevelDark),
-            alignment: .bottom
-        )
+        .navigationTitle("More")
     }
+}
 
-    // MARK: — Helpers
+// MARK: - Placeholder Tab
 
-    private func openSidebar() {
-        withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
-            isSidebarOpen = true
+private struct PlaceholderTabView: View {
+    let title: String
+    let icon: String
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 48, weight: .thin))
+                .foregroundStyle(Color(.tertiaryLabel))
+            Text(title)
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(Color(.secondaryLabel))
+            Text("Coming soon")
+                .font(.system(size: 13))
+                .foregroundStyle(Color(.tertiaryLabel))
         }
-    }
-
-    private func closeSidebar() {
-        withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
-            isSidebarOpen = false
-        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(.systemBackground))
     }
 }
 
@@ -157,16 +136,17 @@ struct ContentView: View {
         .environmentObject(playerVM)
         .environmentObject(sidebarVM)
         .environmentObject(libraryVM)
+        .environmentObject(ThemeManager())
 }
 
 #Preview("With song playing") {
     let playerVM  = PlayerViewModel()
     let sidebarVM = SidebarViewModel()
     let libraryVM = LibraryViewModel(playerViewModel: playerVM)
-    let song = Song(title: "Ambience : Water", artist: "Nature Sounds", duration: 245, bookmarkData: Data())
+    let song = Song(title: "Open Window", artist: "Ana Vero", duration: 217, bookmarkData: Data())
     playerVM.currentSong = song
     playerVM.isPlaying = true
-    playerVM.duration = 245
+    playerVM.duration = 217
     playerVM.currentTime = 60
     libraryVM.songs = [
         song,
@@ -177,4 +157,5 @@ struct ContentView: View {
         .environmentObject(playerVM)
         .environmentObject(sidebarVM)
         .environmentObject(libraryVM)
+        .environmentObject(ThemeManager())
 }

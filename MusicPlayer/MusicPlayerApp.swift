@@ -6,6 +6,7 @@ struct MusicPlayerApp: App {
     @StateObject private var playerVM:  PlayerViewModel
     @StateObject private var sidebarVM: SidebarViewModel
     @StateObject private var libraryVM: LibraryViewModel
+    @StateObject private var themeManager = ThemeManager()
 
     @Environment(\.scenePhase) private var scenePhase
 
@@ -23,11 +24,20 @@ struct MusicPlayerApp: App {
                 .environmentObject(playerVM)
                 .environmentObject(libraryVM)
                 .environmentObject(sidebarVM)
+                .environmentObject(themeManager)
+                .preferredColorScheme(themeManager.isDark ? .dark : .light)
                 // Folder picker sheet — presented from root so it always works
                 .sheet(isPresented: $libraryVM.isFolderPickerPresented) {
                     DocumentFolderPicker { url in
                         libraryVM.isFolderPickerPresented = false
                         libraryVM.setMusicFolder(url: url)
+                    }
+                    .ignoresSafeArea()
+                }
+                .sheet(isPresented: $libraryVM.isDownloadsPickerPresented) {
+                    DocumentFolderPicker { url in
+                        libraryVM.isDownloadsPickerPresented = false
+                        libraryVM.setDownloadsFolder(url: url)
                     }
                     .ignoresSafeArea()
                 }
@@ -38,10 +48,13 @@ struct MusicPlayerApp: App {
                 libraryVM.syncMediaLibrary()
                 libraryVM.syncMusicFolder()
                 libraryVM.syncDocuments()
+                libraryVM.syncDownloadsFolder()
                 libraryVM.startFolderWatcher()
+                libraryVM.startDownloadsFolderWatcher()
                 libraryVM.startMediaLibraryMonitoring()
             case .background:
                 libraryVM.stopFolderWatcher()
+                libraryVM.stopDownloadsFolderWatcher()
                 libraryVM.stopMediaLibraryMonitoring()
                 playerVM.savePlaybackState()
             default:

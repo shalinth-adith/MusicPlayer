@@ -17,11 +17,15 @@ final class LibraryViewModel: ObservableObject {
     }
     @Published var isImporting: Bool = false
     @Published var isFolderPickerPresented: Bool = false
+    @Published var isDownloadsPickerPresented: Bool = false
     @Published var errorMessage: String?
     @Published var syncMessage: String?
 
     var musicFolderName: String? { fileImportService.savedFolderName }
     var hasMusicFolder: Bool { fileImportService.hasSavedFolder }
+
+    var downloadsFolderName: String? { fileImportService.savedDownloadsFolderName }
+    var hasDownloadsFolder: Bool { fileImportService.hasSavedDownloadsFolder }
 
     // MARK: - Private
 
@@ -32,6 +36,9 @@ final class LibraryViewModel: ObservableObject {
     private let folderWatcher: FolderWatcherService
     private var watcherCancellable: AnyCancellable?
     private var activeFolderURL: URL?
+    private let downloadsFolderWatcher: FolderWatcherService = FolderWatcherService()
+    private var downloadsWatcherCancellable: AnyCancellable?
+    private var activeDownloadsFolderURL: URL?
     private var mediaLibraryCancellable: AnyCancellable?
 
     // MARK: - Init
@@ -46,7 +53,7 @@ final class LibraryViewModel: ObservableObject {
         self.mediaLibraryService = mediaLibraryService
         self.folderWatcher = folderWatcher
         self.playerViewModel = playerViewModel
-        Task { await loadLibraryAsync() }
+        loadLibrary()
     }
 
     // MARK: - Device Music Library Sync
@@ -156,10 +163,76 @@ final class LibraryViewModel: ObservableObject {
             let urls = service.scanFolder(folderURL)
             guard !urls.isEmpty else { return }
 
-            let existingPaths = Set(currentSongs.compactMap { $0.resolvedURL?.path })
+            let existingPaths = Set(currentSongs.compactMap { $0.resolvedURL?.resolvingSymlinksInPath().path })
             var added: [Song] = []
             for url in urls {
-                guard !existingPaths.contains(url.path) else { continue }
+                guard !existingPaths.contains(url.resolvingSymlinksInPath().path) else { continue }
+                if let song = try? service.importFolderSong(from: url, folderURL: folderURL) {
+                    added.append(song)
+                }
+            }
+            guard !added.isEmpty else { return }
+            await MainActor.run { [weak self] in
+                guard let self else { return }
+                self.songs.append(contentsOf: added)
+                self.saveLibrary()
+                self.syncMessage = "Added \(added.count) new song\(added.count == 1 ? "" : "s")"
+            }
+        }
+    }
+
+    // MARK: - Downloads Folder Sync
+
+    func setDownloadsFolder(url: URL) {
+        fileImportService.saveDownloadsFolderBookmark(url: url)
+        syncDownloadsFolder()
+        startWatchingDownloadsFolder()
+    }
+
+    func startDownloadsFolderWatcher() {
+        guard fileImportService.hasSavedDownloadsFolder else { return }
+        startWatchingDownloadsFolder()
+    }
+
+    func stopDownloadsFolderWatcher() {
+        stopWatchingDownloadsFolder()
+    }
+
+    private func startWatchingDownloadsFolder() {
+        stopWatchingDownloadsFolder()
+        guard let url = fileImportService.startDownloadsFolderAccess() else { return }
+        activeDownloadsFolderURL = url
+        downloadsFolderWatcher.startWatching(folderURL: url)
+        downloadsWatcherCancellable = downloadsFolderWatcher.changePublisher
+            .debounce(for: .seconds(1.5), scheduler: DispatchQueue.global(qos: .utility))
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] in
+                Task { @MainActor [weak self] in self?.syncDownloadsFolder() }
+            }
+    }
+
+    private func stopWatchingDownloadsFolder() {
+        downloadsWatcherCancellable?.cancel()
+        downloadsWatcherCancellable = nil
+        downloadsFolderWatcher.stopWatching()
+        if let url = activeDownloadsFolderURL {
+            fileImportService.stopDownloadsFolderAccess(url)
+            activeDownloadsFolderURL = nil
+        }
+    }
+
+    func syncDownloadsFolder() {
+        let service = fileImportService
+        let currentSongs = songs
+        Task.detached(priority: .utility) { [weak self] in
+            guard let folderURL = service.resolveDownloadsFolder() else { return }
+            let urls = service.scanFolder(folderURL)
+            guard !urls.isEmpty else { return }
+
+            let existingPaths = Set(currentSongs.compactMap { $0.resolvedURL?.resolvingSymlinksInPath().path })
+            var added: [Song] = []
+            for url in urls {
+                guard !existingPaths.contains(url.resolvingSymlinksInPath().path) else { continue }
                 if let song = try? service.importFolderSong(from: url, folderURL: folderURL) {
                     added.append(song)
                 }
@@ -184,10 +257,10 @@ final class LibraryViewModel: ObservableObject {
             let urls = service.scanDocumentsDirectory()
             guard !urls.isEmpty else { return }
 
-            let existingPaths = Set(currentSongs.compactMap { $0.resolvedURL?.path })
+            let existingPaths = Set(currentSongs.compactMap { $0.resolvedURL?.resolvingSymlinksInPath().path })
             var added: [Song] = []
             for url in urls {
-                guard !existingPaths.contains(url.path) else { continue }
+                guard !existingPaths.contains(url.resolvingSymlinksInPath().path) else { continue }
                 if let song = try? service.importDocumentSong(from: url) {
                     added.append(song)
                 }
@@ -246,15 +319,10 @@ final class LibraryViewModel: ObservableObject {
         }
     }
 
-    private func loadLibraryAsync() async {
-        let key = storageKey
-        let decoded: [Song]? = await Task.detached(priority: .userInitiated) {
-            guard let data = UserDefaults.standard.data(forKey: key) else { return nil }
-            return try? JSONDecoder().decode([Song].self, from: data)
-        }.value
-        if let saved = decoded {
-            songs = saved
-        }
+    private func loadLibrary() {
+        guard let data = UserDefaults.standard.data(forKey: storageKey),
+              let decoded = try? JSONDecoder().decode([Song].self, from: data) else { return }
+        songs = decoded
         if playerViewModel.currentSong == nil {
             playerViewModel.restorePlaybackState(from: songs)
         }
