@@ -64,6 +64,46 @@ final class FileImportService: @unchecked Sendable {
         url.stopAccessingSecurityScopedResource()
     }
 
+    // MARK: - Downloads Folder Bookmark
+
+    private let downloadsFolderBookmarkKey = "downloads_folder_bookmark"
+
+    func saveDownloadsFolderBookmark(url: URL) {
+        guard url.startAccessingSecurityScopedResource() else { return }
+        defer { url.stopAccessingSecurityScopedResource() }
+        if let data = try? url.bookmarkData(
+            options: .minimalBookmark,
+            includingResourceValuesForKeys: nil,
+            relativeTo: nil
+        ) {
+            UserDefaults.standard.set(data, forKey: downloadsFolderBookmarkKey)
+        }
+    }
+
+    var hasSavedDownloadsFolder: Bool {
+        UserDefaults.standard.data(forKey: downloadsFolderBookmarkKey) != nil
+    }
+
+    var savedDownloadsFolderName: String? {
+        resolveDownloadsFolder()?.lastPathComponent
+    }
+
+    func resolveDownloadsFolder() -> URL? {
+        guard let data = UserDefaults.standard.data(forKey: downloadsFolderBookmarkKey) else { return nil }
+        var isStale = false
+        return try? URL(resolvingBookmarkData: data, bookmarkDataIsStale: &isStale)
+    }
+
+    func startDownloadsFolderAccess() -> URL? {
+        guard let url = resolveDownloadsFolder() else { return nil }
+        guard url.startAccessingSecurityScopedResource() else { return nil }
+        return url
+    }
+
+    func stopDownloadsFolderAccess(_ url: URL) {
+        url.stopAccessingSecurityScopedResource()
+    }
+
     /// Scans the given folder (recursively one level) for audio files.
     func scanFolder(_ folderURL: URL) -> [URL] {
         guard folderURL.startAccessingSecurityScopedResource() else { return [] }

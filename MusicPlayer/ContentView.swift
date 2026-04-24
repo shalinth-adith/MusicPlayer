@@ -21,10 +21,12 @@ struct ContentView: View {
 
     var body: some View {
         TabView(selection: $sidebarVM.selectedTab) {
-            PlaceholderTabView(title: "Radio", icon: "radio")
-                .safeAreaInset(edge: .bottom, spacing: 0) { miniPlayerBar }
-                .tabItem { Label("Radio", systemImage: "radio") }
-                .tag(AppTab.radio)
+            NavigationStack {
+                RadioView()
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) { miniPlayerBar }
+            .tabItem { Label("Radio", systemImage: "radio") }
+            .tag(AppTab.radio)
 
             PlaceholderTabView(title: "Playlists", icon: "music.note.list")
                 .safeAreaInset(edge: .bottom, spacing: 0) { miniPlayerBar }
@@ -35,13 +37,15 @@ struct ContentView: View {
                 LibraryView()
             }
             .safeAreaInset(edge: .bottom, spacing: 0) { miniPlayerBar }
-            .tabItem { Label("Artists", systemImage: "person.crop.rectangle.stack") }
+            .tabItem { Label("Library", systemImage: "person.crop.rectangle.stack") }
             .tag(AppTab.artists)
 
-            PlaceholderTabView(title: "Songs", icon: "music.note")
-                .safeAreaInset(edge: .bottom, spacing: 0) { miniPlayerBar }
-                .tabItem { Label("Songs", systemImage: "music.note") }
-                .tag(AppTab.songs)
+            NavigationStack {
+                SongsView()
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) { miniPlayerBar }
+            .tabItem { Label("Songs", systemImage: "music.note") }
+            .tag(AppTab.songs)
 
             NavigationStack {
                 MoreTabView()
@@ -73,6 +77,71 @@ struct ContentView: View {
             case .failure(let error): libraryVM.errorMessage = error.localizedDescription
             }
         }
+    }
+}
+
+// MARK: - Songs Tab
+
+private struct SongsView: View {
+    @EnvironmentObject var libraryVM: LibraryViewModel
+    @EnvironmentObject var playerVM: PlayerViewModel
+
+    private var sortedSongs: [Song] {
+        libraryVM.songs.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+    }
+
+    var body: some View {
+        Group {
+            if libraryVM.songs.isEmpty {
+                VStack(spacing: 16) {
+                    Image(systemName: "music.note")
+                        .font(.system(size: 48, weight: .thin))
+                        .foregroundStyle(Theme.accent.opacity(0.4))
+                    Text("No Songs")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(Color(.label))
+                    Text("Add songs via the Library tab.")
+                        .font(.system(size: 12))
+                        .foregroundStyle(Color(.secondaryLabel))
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                List {
+                    ForEach(sortedSongs) { song in
+                        HStack(spacing: 12) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(song.title)
+                                    .font(.system(size: 15))
+                                    .foregroundStyle(Color(.label))
+                                    .lineLimit(1)
+                                Text(song.artist)
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(Color(.secondaryLabel))
+                                    .lineLimit(1)
+                            }
+                            Spacer()
+                            if playerVM.currentSong?.id == song.id {
+                                Image(systemName: playerVM.isPlaying ? "waveform" : "pause")
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(Theme.accent)
+                            } else {
+                                Text(song.formattedDuration)
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(Color(.secondaryLabel))
+                            }
+                        }
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            libraryVM.selectSong(song)
+                            playerVM.showNowPlayingSheet = true
+                        }
+                    }
+                }
+                .listStyle(.plain)
+            }
+        }
+        .navigationTitle("Songs")
+        .navigationBarTitleDisplayMode(.large)
     }
 }
 

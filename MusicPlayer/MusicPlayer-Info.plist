@@ -22,6 +22,8 @@
 	<true/>
 	<key>NSAppleMusicUsageDescription</key>
 	<string>MusicPlayer needs access to your music library to automatically sync your songs.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>MusicPlayer uses your location to find radio stations near you.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -35,6 +37,11 @@
 	<array>
 		<string>audio</string>
 	</array>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
 	<key>UIFileSharingEnabled</key>
 	<true/>
 	<key>UILaunchScreen</key>

@@ -4,7 +4,7 @@ import Combine
 @MainActor
 final class SidebarViewModel: ObservableObject {
 
-    @Published var selectedTab: AppTab = .nowPlaying
+    @Published var selectedTab: AppTab = .artists
 
     func select(_ tab: AppTab) {
         selectedTab = tab

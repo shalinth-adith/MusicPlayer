@@ -1,6 +1,9 @@
 import Foundation
 
 enum AppTab: String, CaseIterable {
-    case nowPlaying
-    case library
+    case radio
+    case playlists
+    case artists
+    case songs
+    case more
 }

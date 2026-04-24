@@ -7,6 +7,7 @@ struct MusicPlayerApp: App {
     @StateObject private var sidebarVM: SidebarViewModel
     @StateObject private var libraryVM: LibraryViewModel
     @StateObject private var themeManager = ThemeManager()
+    @StateObject private var radioVM = RadioViewModel()
 
     @Environment(\.scenePhase) private var scenePhase
 
@@ -25,6 +26,7 @@ struct MusicPlayerApp: App {
                 .environmentObject(libraryVM)
                 .environmentObject(sidebarVM)
                 .environmentObject(themeManager)
+                .environmentObject(radioVM)
                 .preferredColorScheme(themeManager.isDark ? .dark : .light)
                 // Folder picker sheet — presented from root so it always works
                 .sheet(isPresented: $libraryVM.isFolderPickerPresented) {

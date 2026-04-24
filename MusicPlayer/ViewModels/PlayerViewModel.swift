@@ -15,6 +15,7 @@ final class PlayerViewModel: ObservableObject {
     @Published var isShuffle: Bool = false
     @Published var repeatMode: RepeatMode = .off
     @Published var queue: [Song] = []
+    @Published var showNowPlayingSheet: Bool = false
 
     // MARK: - Private
 
